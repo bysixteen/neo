@@ -1,0 +1,11 @@
+{
+  "name": "alexa-expression-system-docs",
+  "description": "Sprint documentation site for the Alexa Expression System engagement",
+  "scripts": {
+    "build": "node build.js",
+    "preview": "npx serve dist"
+  },
+  "dependencies": {
+    "marked": "^15.0.0"
+  }
+}
