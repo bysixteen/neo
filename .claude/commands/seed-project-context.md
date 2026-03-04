@@ -2,7 +2,13 @@
 
 ## Purpose
 
-Transform an existing Requirements/Product Document (RPD), brief, or research document into the `_meta/PROJECT_CONTEXT.md` file that `/init-project-squad` expects. Run this **before** `/init-project-squad`.
+Transform an existing source document (RFP, brief, pitch deck, research report) into the `_meta/PROJECT_CONTEXT.md` file that `/init-project-squad` expects. Run this **before** `/init-project-squad`.
+
+**Common source types:**
+- **RFP (Request for Proposal)** — client requirements, constraints, scope
+- **Project brief** — internal summary of goals and approach
+- **Pitch deck** — problem/solution framing, target users
+- **Research report** — user insights, pain points, opportunities
 
 ---
 
