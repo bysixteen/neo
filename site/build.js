@@ -47,6 +47,9 @@ function statusBadge(status) {
   return `<span style="background:${s.bg};color:${s.color};border:1px solid ${s.border};padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;white-space:nowrap">${s.label}</span>`;
 }
 
+// Populated after scanning sprints — injected inline into each page
+let sprintsInlineData = '[]';
+
 function page({ title, navId, root, content }) {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -55,6 +58,7 @@ function page({ title, navId, root, content }) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${title} — Alexa Expression System</title>
   <link rel="stylesheet" href="${root}/assets/styles.css">
+  <script>window.__sprints__ = ${sprintsInlineData};</script>
   <style>
     .main h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 32px; }
     .main h2 { font-size: 20px; font-weight: 700; margin: 32px 0 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
@@ -115,6 +119,7 @@ const sprintsJson = sprints.map(({ folder, summary }) => ({
 }));
 
 write(path.join(DIST, 'sprints.json'), JSON.stringify(sprintsJson, null, 2));
+sprintsInlineData = JSON.stringify(sprintsJson);
 
 // ── SPRINT DETAIL PAGES ──
 

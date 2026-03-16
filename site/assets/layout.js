@@ -84,11 +84,15 @@
   // On-page sections — always last
   addOnPageGroup(sidebar);
 
-  // Dynamic groups — fetch sprints.json, insert before On This Page
-  fetch(href('sprints.json'))
-    .then(function (r) { return r.json(); })
-    .then(function (data) { buildDynamicGroups(data, sidebar); })
-    .catch(function () { /* sidebar works without dynamic groups */ });
+  // Dynamic groups — use inline data if available (file:// compat), else fetch
+  if (window.__sprints__) {
+    buildDynamicGroups(window.__sprints__, sidebar);
+  } else {
+    fetch(href('sprints.json'))
+      .then(function (r) { return r.json(); })
+      .then(function (data) { buildDynamicGroups(data, sidebar); })
+      .catch(function () { /* sidebar works without dynamic groups */ });
+  }
 
   // ── INJECT INTO PAGE ──
 
