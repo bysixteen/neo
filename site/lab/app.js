@@ -1,21 +1,15 @@
-// Structure Lab — boot, sidebar wiring, animation loop
+// Structure Lab — Organic Knockout playground
+// Single layout: full-screen container + circular notch with organic fillet blending
 
 (function () {
   var canvas = document.getElementById('canvas');
 
-  // State
-  var currentPreset = 'fullStage';
-  var currentShapes = [];
-  var diagonalPanels = null; // null = orthogonal mode
-  var mode = 'ortho'; // 'ortho' or 'diagonal'
-
   // Parameters
   var params = {
-    gap: 8,
-    rOuter: 80,
-    rInner: 40,
-    diagonalShift: 1,  // grid columns to shift top edge (1 or 2)
-    diagonalGap: 16
+    notchSize: 200,
+    notchOffset: Tokens.gaps.notch,
+    rOrganic: Tokens.radii.organic,
+    rOuter: Tokens.radii.outer
   };
 
   // Display flags
@@ -28,82 +22,31 @@
     showDims: false
   };
 
+  // Current scene
+  var scene = null;
+
   // ─── INIT ───
 
   Renderer.init(canvas);
 
-  // Build layout preset buttons
-  var layoutContainer = document.getElementById('layout-presets');
-  var presetKeys = Object.keys(Layouts.PRESETS);
-  presetKeys.forEach(function (key) {
-    var preset = Layouts.PRESETS[key];
-    var btn = document.createElement('button');
-    btn.className = 'layout-btn';
-    btn.textContent = preset.label;
-    btn.dataset.preset = key;
-    btn.addEventListener('click', function () { selectPreset(key); });
-    layoutContainer.appendChild(btn);
-  });
-
-  // Diagonal-only presets
-  var diagContainer = document.getElementById('diagonal-presets');
-  [2, 3, 4, 5].forEach(function (n) {
-    var btn = document.createElement('button');
-    btn.className = 'layout-btn diag-preset';
-    btn.textContent = n + ' Panel';
-    btn.addEventListener('click', function () {
-      setMode('diagonal');
-      diagonalPanels = Diagonal.computePanels(n, params.diagonalShift, params.diagonalGap);
-      currentShapes = []; // clear ortho shapes
-    });
-    diagContainer.appendChild(btn);
-  });
-
-  // Mode toggle
-  var btnOrtho = document.getElementById('mode-ortho');
-  var btnDiag = document.getElementById('mode-diagonal');
-  btnOrtho.addEventListener('click', function () { setMode('ortho'); });
-  btnDiag.addEventListener('click', function () { setMode('diagonal'); });
-
-  // Structure sliders
-  wireSlider('gap', 0, 40, 1, params.gap, function (v) {
-    params.gap = v;
+  // Notch sliders
+  wireSlider('notchSize', 80, 400, 8, params.notchSize, function (v) {
+    params.notchSize = v;
     regenerate();
   });
+  wireSlider('notchOffset', 0, 32, 1, params.notchOffset, function (v) {
+    params.notchOffset = v;
+    regenerate();
+  });
+  wireSlider('rOrganic', 0, 120, 4, params.rOrganic, function (v) {
+    params.rOrganic = v;
+    regenerate();
+  });
+
+  // Container slider
   wireSlider('rOuter', 0, 120, 1, params.rOuter, function (v) {
     params.rOuter = v;
     regenerate();
-  });
-  wireSlider('rInner', 0, 120, 1, params.rInner, function (v) {
-    params.rInner = v;
-    regenerate();
-  });
-
-  // Related/Unrelated toggle
-  var relatedToggle = document.getElementById('toggle-related');
-  relatedToggle.addEventListener('click', function () {
-    var isRelated = relatedToggle.classList.toggle('active');
-    if (isRelated) {
-      params.gap = 8;
-      params.rInner = 40;
-    } else {
-      params.gap = 24;
-      params.rInner = 80;
-    }
-    updateSliderUI('gap', params.gap);
-    updateSliderUI('rInner', params.rInner);
-    regenerate();
-  });
-  relatedToggle.classList.add('active'); // start as related
-
-  // Diagonal sliders
-  wireSlider('diagShift', 0, 4, 0.5, params.diagonalShift, function (v) {
-    params.diagonalShift = v;
-    if (mode === 'diagonal') regenerateDiagonal();
-  });
-  wireSlider('diagGap', 0, 40, 1, params.diagonalGap, function (v) {
-    params.diagonalGap = v;
-    if (mode === 'diagonal') regenerateDiagonal();
   });
 
   // Display toggles
@@ -114,92 +57,13 @@
   wireCheckbox('showGaps', display.showGaps, function (v) { display.showGaps = v; });
   wireCheckbox('showDims', display.showDims, function (v) { display.showDims = v; });
 
-  // Motion section toggle
-  var motionHeader = document.getElementById('motion-toggle');
-  var motionBody = document.getElementById('motion-body');
-  if (motionHeader) {
-    motionHeader.addEventListener('click', function () {
-      motionBody.classList.toggle('collapsed');
-      motionHeader.classList.toggle('open');
-    });
-  }
-
-  // Spring controls (demoted)
-  var springDuration = 0.45;
-  var springBounce = 0.35;
-  var materialContainer = document.getElementById('material-presets');
-  if (materialContainer) {
-    var mKeys = Object.keys(MATERIAL_PRESETS);
-    mKeys.forEach(function (key) {
-      var preset = MATERIAL_PRESETS[key];
-      var btn = document.createElement('button');
-      btn.className = 'preset-btn';
-      btn.textContent = preset.label;
-      btn.addEventListener('click', function () {
-        springDuration = preset.duration;
-        springBounce = preset.bounce;
-        Transition.setSpringParams(springDuration, springBounce);
-      });
-      materialContainer.appendChild(btn);
-    });
-  }
-
   // Resize
   window.addEventListener('resize', function () { Renderer.resize(); });
 
   // ─── LOGIC ───
 
-  function setMode(m) {
-    mode = m;
-    btnOrtho.classList.toggle('active', m === 'ortho');
-    btnDiag.classList.toggle('active', m === 'diagonal');
-
-    // Show/hide diagonal section
-    var diagSection = document.getElementById('diagonal-section');
-    diagSection.style.display = m === 'diagonal' ? 'block' : 'none';
-
-    if (m === 'ortho') {
-      diagonalPanels = null;
-      regenerate();
-    } else {
-      regenerateDiagonal();
-    }
-  }
-
-  function selectPreset(key) {
-    currentPreset = key;
-    // Highlight active button
-    var btns = layoutContainer.querySelectorAll('.layout-btn');
-    for (var i = 0; i < btns.length; i++) {
-      btns[i].classList.toggle('active', btns[i].dataset.preset === key);
-    }
-
-    if (mode === 'ortho') {
-      var newShapes = Layouts.generate(currentPreset, params);
-      animateTo(newShapes);
-    }
-  }
-
   function regenerate() {
-    if (mode !== 'ortho') return;
-    var newShapes = Layouts.generate(currentPreset, params);
-    animateTo(newShapes);
-  }
-
-  function regenerateDiagonal() {
-    // Default to 3 panels if no explicit selection
-    var panelCount = diagonalPanels ? diagonalPanels.length : 3;
-    diagonalPanels = Diagonal.computePanels(panelCount, params.diagonalShift, params.diagonalGap);
-    currentShapes = [];
-  }
-
-  function animateTo(newShapes) {
-    if (currentShapes.length === 0) {
-      currentShapes = newShapes;
-      return;
-    }
-    Transition.setSpringParams(springDuration, springBounce);
-    Transition.start(currentShapes, newShapes, performance.now());
+    scene = Layouts.organicKnockout(params);
   }
 
   // ─── HELPERS ───
@@ -220,13 +84,6 @@
     });
   }
 
-  function updateSliderUI(id, value) {
-    var slider = document.getElementById(id);
-    var valEl = document.getElementById(id + '-val');
-    if (slider) slider.value = value;
-    if (valEl) valEl.textContent = value;
-  }
-
   function wireCheckbox(id, initial, onChange) {
     var cb = document.getElementById(id);
     if (!cb) return;
@@ -239,19 +96,12 @@
   // ─── ANIMATION LOOP ───
 
   function loop() {
-    var now = performance.now();
-
-    if (Transition.isActive()) {
-      currentShapes = Transition.update(now);
-    }
-
-    Renderer.render(currentShapes, display, diagonalPanels);
+    Renderer.renderOrganic(scene, display);
     requestAnimationFrame(loop);
   }
 
   // ─── BOOT ───
 
-  setMode('ortho');
-  selectPreset('twoPanel');
+  regenerate();
   requestAnimationFrame(loop);
 })();

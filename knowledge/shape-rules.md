@@ -1,11 +1,56 @@
-# Neo-EDL Shape Rules — Extracted from Design Explorations
+# Neo-EDL Shape Rules — Canonical Specification
 
 **Source:** ~60 concept screens from Amazon DxD team (Figma + shared assets)
 **Date extracted:** 2026-03-16
+**Last updated:** 2026-03-16 (Smart Fragment model, tokenised padding, 24x15 grid)
+
+> This document is the single source of truth for the Neo-EDL shape system.
+> All tooling and prompts should reference this file exclusively.
 
 ---
 
-## 1. Shape Math (Construction Method)
+## 1. Smart Fragments
+
+Components are **smart fragments** — self-contained elements that carry their own tokenised padding. There are no external gutters or grid margins.
+
+**Properties:**
+- **Padding** — tokenised [top, right, bottom, left], baked into each fragment
+- **Relationship** — `associated` (tight, related content) or `disassociated` (breathing room, unrelated)
+- **Action Type** — `primary`, `secondary`, or `none` (determines notch eligibility)
+- **Size Category** — computed from area ratio: `full` (>75%), `half` (25-75%), `quarter` (<25%)
+
+**Association rules:**
+- Associated fragments: 8px gap, inner-facing corners reduce to 40px
+- Disassociated fragments: 24px gap, all corners stay 80px
+
+---
+
+## 2. Token System
+
+Inspired by the BNY three-layer token pipeline (primitives → semantics → component), simplified for a Canvas 2D exploration tool.
+
+| Category | Token | Value |
+|----------|-------|-------|
+| **Grid** | `GRID_UNIT` | 16px |
+| **Spacing** | `spacing.xs` | 8px |
+| | `spacing.sm` | 16px |
+| | `spacing.md` | 24px |
+| | `spacing.lg` | 32px |
+| | `spacing.xl` | 48px |
+| **Radii** | `radii.outer` | 80px |
+| | `radii.inner` | 40px |
+| | `radii.notch` | 240px |
+| | `radii.organic` | 72px |
+| **Gaps** | `gaps.associated` | 8px |
+| | `gaps.disassociated` | 24px |
+| | `gaps.notch` | 8px |
+| | `gaps.diagonal` | 16px |
+
+All spatial values are multiples of 8.
+
+---
+
+## 3. Shape Math (Construction Method)
 
 Shapes are NOT simple rounded rectangles. They are built through **boolean operations**:
 
@@ -26,7 +71,7 @@ This produces the organic, flowing curves seen in the explorations — not sharp
 
 ---
 
-## 2. The Notch (formerly "Bibble")
+## 4. The Notch (formerly "Bibble")
 
 The notch is a secondary shape that embeds into a corner of the main container. Three sizes:
 
@@ -46,44 +91,62 @@ The notch is a secondary shape that embeds into a corner of the main container. 
 
 ---
 
-## 3. Aspect Ratios & Notch Eligibility
+## 5. Notch Eligibility
 
-Components have aspect ratios measured in grid units (e.g. 4x3 = 4 cols x 3 rows).
+Notch eligibility is determined by **action hierarchy** and **fragment size**, not just aspect ratios.
 
-**No notch allowed:**
-1x1, 2x1, 2x2, 2x3, 3x1, 3x3, 4x2, 5x2
+| Condition | Notch? |
+|-----------|--------|
+| Fragment area < 25% of canvas (quarter) | No |
+| No action type (none) | No |
+| Primary action + half/full size | Medium or Large |
+| Secondary action + half/full size | Small (circle) |
 
-**Notch recommended (enough surface area):**
-4x3, 4x4, 5x5, 6x5, 7x5, 10x6
-
-"Whole card is the button" for small aspect ratios (no room for a separate notch).
+The weighting of the notch relates to the parent fragment size. "Don't need a notch when it's a quarter."
 
 ---
 
-## 4. Gap Rules
+## 5b. Collision Knockouts
+
+In addition to authored notches, the system supports **proximity-driven knockouts** inspired by Pete's Shapes canvas tool. When fragments come within a configurable "collision gap" distance of each other, the smaller fragment's profile is boolean-subtracted from the larger one.
+
+**How it works:**
+- A global **Collision Gap** slider (0-48px) controls the proximity threshold
+- When the expanded bounds of a smaller fragment (invader) overlap a larger fragment (host), a knockout is computed
+- The knockout cut follows the invader's own profile (its radii), expanded by 8px
+- An inner highlight stroke along the cut edge creates visual depth
+
+**Collision vs authored notches:**
+- Authored notches (`notch: true`) are predefined and always render
+- Collision knockouts are computed from fragment proximity at render time
+- Both use the same boolean subtraction technique (offscreen canvas + `destination-out`)
+
+---
+
+## 6. Gap Rules
 
 | Relationship | Gap | Effect on Corners |
 |-------------|-----|-------------------|
-| Related | 8px | Inner-facing corners reduce to 40px |
-| Unrelated | 24px | All corners stay 80px |
+| Associated | 8px | Inner-facing corners reduce to 40px |
+| Disassociated | 24px | All corners stay 80px |
 | Notch offset | 8px | Boolean subtraction gap |
 | Diagonal gap | 16px | Between diagonal-cut panels |
 
 ---
 
-## 5. Corner Radius Rules
+## 7. Corner Radius Rules
 
 | Position | Radius | When |
 |----------|--------|------|
 | Outer (facing device edge) | 80px | Always |
-| Inner (facing related neighbour) | 40px | When adjacent shape is within 8px |
+| Inner (facing associated neighbour) | 40px | When adjacent fragment is within 8px |
 | Notch rectangle | 240px | Medium/large notch shapes |
 | Container base | 80px | Default for all containers |
 | Organic smoothing | 64-80px | Applied after boolean operations |
 
 ---
 
-## 6. The "Diagonal" (Grid Shift, Not Fixed Angle)
+## 8. The "Diagonal" (Grid Shift, Not Fixed Angle)
 
 The diagonal effect is NOT a fixed -98° geometric angle. It is created by:
 
@@ -97,21 +160,31 @@ The visual effect approximates -98° from vertical but the construction is grid-
 
 ---
 
-## 7. Grid System (Circle Grid)
+## 9. Vector Grid (Edge-to-Edge)
 
-The grid uses **circles** arranged in a regular pattern, not traditional lines or dots.
+The EDL uses a **vector grid** — thin lines that act as attachment vectors. Not a traditional column/gutter grid.
 
-- Circles are uniform in size
-- Shapes sit ON TOP of the grid
-- Circles are visible through the gaps between shapes
-- The grid exists both inside and outside the device frame
-- Grid coordinates use (col, row) notation, e.g. (11,0), (14,0)
+**Layout grid: 24 columns × 15 rows** (80px × 72px cells, both divisible by 8)
+**Snap grid: 16px** increments for precise positioning
 
-"The EDL uses a grid of lines that act as 'attachment' vectors. Not a traditional grid. Spacing tokens or the edges of components can be attached to this grid."
+- Grid spans the **full device canvas** (edge-to-edge, 0,0 to 1920,1080)
+- Grid lines are thin, hairline-width horizontals and verticals
+- Shapes **attach** to grid lines — their edges snap to the nearest line
+- Attached lines render brighter; unattached lines are very faint
+- The grid extends beyond the device frame when toggled on
+- Chrome elements (status bar) participate in attachment detection
 
 ---
 
-## 8. Canonical Content Types
+## 10. Chrome as Fragments
+
+Chrome elements (status bar, pagination, title bar) are themselves smart fragments that occupy grid positions. They participate in the association model — typically disassociated from content fragments.
+
+Currently implemented: status bar only. Others to be added as the system evolves.
+
+---
+
+## 11. Canonical Content Types
 
 | Type | Description | Layout Pattern |
 |------|-------------|---------------|
@@ -122,7 +195,7 @@ The grid uses **circles** arranged in a regular pattern, not traditional lines o
 
 ---
 
-## 9. Generative & Adaptive Logic
+## 12. Generative & Adaptive Logic
 
 The UI adapts based on:
 - **Room context:** Kitchen (recipe-first), Bedroom (wind-down), Living Room (entertainment hub), Entryway (departure briefing)
@@ -133,9 +206,10 @@ The UI adapts based on:
 
 ---
 
-## Open Questions (from the explorations)
+## Open Questions
 
-1. Exact ratio of circle-to-main-shape for notch sizing (specs say "??x Main Shape")
+1. Exact ratio of notch-to-main-shape for notch sizing (specs say "??x Main Shape")
 2. Exact organic smoothing value (64 vs 80 in different examples)
-3. How the circle grid dimensions map to device resolution (18x12? different?)
-4. Whether diagonal shifts are always exactly 1 or 2 columns, or can be fractional
+3. Whether diagonal shifts are always exactly 1 or 2 columns, or can be fractional
+4. Additional chrome elements beyond status bar (pagination, title bar, actions)
+5. Breakpoint adaptation — how tokens map across different device sizes

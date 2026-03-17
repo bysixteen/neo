@@ -1,19 +1,23 @@
-// Vector Grid — attachment-based grid system for the Alexa EDL
-// "The EDL uses a grid of lines that act as 'attachment' vectors.
-//  Not a traditional grid. Spacing tokens or the edges of components
-//  can be attached to this grid."
+// Vector Grid — edge-to-edge attachment grid for the Alexa Neo-EDL
+// 24 × 15 layout grid (80px × 72px cells) spanning the full device canvas.
+// 16px snap grid underneath for precise positioning.
 
 var VectorGrid = (function () {
-  var COLS = 18;
-  var ROWS = 12;
+  // Layout grid — conceptual columns/rows for attachment
+  var COLS = Tokens.GRID_COLS;   // 24
+  var ROWS = Tokens.GRID_ROWS;   // 15
+
+  // Snap grid — fine positioning
+  var SNAP_UNIT = Tokens.GRID_UNIT;  // 16px
+
   var SNAP_THRESHOLD = 3; // px tolerance for attachment detection
 
-  // Grid line positions (computed from content area)
+  // Grid lines span the full canvas (edge-to-edge)
   function getVerticalLines() {
     var lines = [];
     for (var i = 0; i <= COLS; i++) {
       lines.push({
-        x: CX + (i * CW / COLS),
+        x: i * CANVAS_W / COLS,
         col: i,
         attached: false
       });
@@ -25,7 +29,7 @@ var VectorGrid = (function () {
     var lines = [];
     for (var j = 0; j <= ROWS; j++) {
       lines.push({
-        y: CY + (j * CH / ROWS),
+        y: j * CANVAS_H / ROWS,
         row: j,
         attached: false
       });
@@ -39,7 +43,6 @@ var VectorGrid = (function () {
       var sh = shapes[s];
       if (!sh || sh.w < 1) continue;
 
-      // Check vertical lines against left/right edges
       for (var i = 0; i < vLines.length; i++) {
         var lx = vLines[i].x;
         if (Math.abs(sh.x - lx) < SNAP_THRESHOLD ||
@@ -48,7 +51,6 @@ var VectorGrid = (function () {
         }
       }
 
-      // Check horizontal lines against top/bottom edges
       for (var j = 0; j < hLines.length; j++) {
         var ly = hLines[j].y;
         if (Math.abs(sh.y - ly) < SNAP_THRESHOLD ||
@@ -67,21 +69,26 @@ var VectorGrid = (function () {
     return { vertical: vLines, horizontal: hLines, cols: COLS, rows: ROWS };
   }
 
-  // Nearest grid point to a position
+  // Snap a value to the nearest 16px increment
+  function snapToGrid(value) {
+    return Math.round(value / SNAP_UNIT) * SNAP_UNIT;
+  }
+
+  // Nearest layout grid column/row
   function nearestCol(x) {
-    var colW = CONTENT_W / COLS;
-    return Math.round((x - CONTENT_X) / colW);
+    return Math.round(x / (CANVAS_W / COLS));
   }
 
   function nearestRow(y) {
-    var rowH = CONTENT_H / ROWS;
-    return Math.round((y - CONTENT_Y) / rowH);
+    return Math.round(y / (CANVAS_H / ROWS));
   }
 
   return {
     COLS: COLS,
     ROWS: ROWS,
+    SNAP_UNIT: SNAP_UNIT,
     compute: compute,
+    snapToGrid: snapToGrid,
     nearestCol: nearestCol,
     nearestRow: nearestRow,
     getVerticalLines: getVerticalLines,

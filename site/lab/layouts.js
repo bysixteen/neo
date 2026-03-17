@@ -1,199 +1,373 @@
-// Layout presets — canonical Alexa EDL layouts
-// Each preset returns a shapes array based on current parameters
-// Corner radii are auto-computed from adjacency
+// Layout presets — Neo-EDL Smart Fragment layouts
+// Each preset returns a SmartFragment array with tokenised padding,
+// relationship metadata, and notch eligibility based on action hierarchy.
 
 var Layouts = (function () {
 
-  // ─── AUTO CORNER RADIUS ───
-  // For each corner of each shape, check if there's an adjacent shape
-  // on the relevant edges. If yes → rInner, otherwise → rOuter.
-  function assignRadii(shapes, gap, rOuter, rInner) {
-    var tolerance = gap + 4; // adjacency detection tolerance
+  // ─── NOTCH ELIGIBILITY ───
+  // Notch only when fragment area > 25% of canvas and has an action type
 
-    for (var i = 0; i < shapes.length; i++) {
-      var s = shapes[i];
+  function isNotchEligible(fragment) {
+    var cat = fragment.sizeCategory || computeSizeCategory(fragment);
+    if (cat === Tokens.SIZE_QUARTER) return false;
+    if (fragment.actionType === Tokens.ACTION_NONE) return false;
+    return true;
+  }
+
+  function selectNotchSize(fragment) {
+    if (!isNotchEligible(fragment)) return null;
+    if (fragment.actionType === Tokens.ACTION_PRIMARY) return 'large';
+    if (fragment.actionType === Tokens.ACTION_SECONDARY) return 'small';
+    return null;
+  }
+
+  // ─── AUTO CORNER RADIUS ───
+  // Uses fragment relationship to determine gap tolerance and radius values.
+  // Associated neighbours get tighter gaps and inner radii.
+
+  function assignRadii(fragments, gap, rOuter, rInner) {
+    var tolerance = gap + 4;
+
+    for (var i = 0; i < fragments.length; i++) {
+      var s = fragments[i];
+      if (s.notch) continue; // notch radii set explicitly
       var hasRight = false, hasLeft = false, hasAbove = false, hasBelow = false;
 
-      for (var j = 0; j < shapes.length; j++) {
+      for (var j = 0; j < fragments.length; j++) {
         if (i === j) continue;
-        var o = shapes[j];
+        var o = fragments[j];
 
-        // Check horizontal adjacency (overlapping in Y)
         var overlapY = s.y < o.y + o.h && s.y + s.h > o.y;
-        // Check vertical adjacency (overlapping in X)
         var overlapX = s.x < o.x + o.w && s.x + s.w > o.x;
 
         if (overlapY) {
-          // Right neighbour
           if (Math.abs((s.x + s.w) - o.x) < tolerance) hasRight = true;
-          // Left neighbour
           if (Math.abs(s.x - (o.x + o.w)) < tolerance) hasLeft = true;
         }
         if (overlapX) {
-          // Below neighbour
           if (Math.abs((s.y + s.h) - o.y) < tolerance) hasBelow = true;
-          // Above neighbour
           if (Math.abs(s.y - (o.y + o.h)) < tolerance) hasAbove = true;
         }
       }
 
-      // TL: inner if has neighbour above OR left
       s.radii[0] = (hasAbove || hasLeft) ? rInner : rOuter;
-      // TR: inner if has neighbour above OR right
       s.radii[1] = (hasAbove || hasRight) ? rInner : rOuter;
-      // BR: inner if has neighbour below OR right
       s.radii[2] = (hasBelow || hasRight) ? rInner : rOuter;
-      // BL: inner if has neighbour below OR left
       s.radii[3] = (hasBelow || hasLeft) ? rInner : rOuter;
     }
 
-    return shapes;
+    return fragments;
+  }
+
+  // ─── HELPER: apply size categories to all fragments ───
+
+  function applySizeCategories(fragments) {
+    for (var i = 0; i < fragments.length; i++) {
+      if (!fragments[i].notch) {
+        fragments[i].sizeCategory = computeSizeCategory(fragments[i]);
+      }
+    }
+    return fragments;
   }
 
   // ─── PRESET DEFINITIONS ───
 
   function fullStage(p) {
-    return [
-      Shape(CX, CY, CW, CH, [p.rOuter, p.rOuter, p.rOuter, p.rOuter])
-    ];
+    var cb = contentBounds();
+    return applySizeCategories([
+      SmartFragment(cb.x, cb.y, cb.w, cb.h, {
+        relationship: 'disassociated',
+        padding: [Tokens.spacing.lg, Tokens.spacing.lg, Tokens.spacing.lg, Tokens.spacing.lg]
+      })
+    ]);
   }
 
   function twoPanel(p) {
-    var leftW = Math.floor((CW - p.gap) * 0.55);
-    var rightW = CW - leftW - p.gap;
-    var shapes = [
-      Shape(CX, CY, leftW, CH, [0,0,0,0]),
-      Shape(CX + leftW + p.gap, CY, rightW, CH, [0,0,0,0])
+    var cb = contentBounds();
+    var leftW = Math.floor((cb.w - p.gap) * 0.55);
+    var rightW = cb.w - leftW - p.gap;
+    var fragments = [
+      SmartFragment(cb.x, cb.y, leftW, cb.h, {
+        relationship: 'associated',
+        padding: [Tokens.spacing.md, Tokens.spacing.sm, Tokens.spacing.md, Tokens.spacing.md]
+      }),
+      SmartFragment(cb.x + leftW + p.gap, cb.y, rightW, cb.h, {
+        relationship: 'associated',
+        padding: [Tokens.spacing.md, Tokens.spacing.md, Tokens.spacing.md, Tokens.spacing.sm]
+      })
     ];
-    return assignRadii(shapes, p.gap, p.rOuter, p.rInner);
+    applySizeCategories(fragments);
+    return assignRadii(fragments, p.gap, p.rOuter, p.rInner);
   }
 
   function threePanel(p) {
-    var w1 = Math.floor(CW * 0.45);
-    var w2 = Math.floor(CW * 0.33);
-    var w3 = CW - w1 - w2 - p.gap * 2;
-    var x1 = CX;
+    var cb = contentBounds();
+    var w1 = Math.floor(cb.w * 0.45);
+    var w2 = Math.floor(cb.w * 0.33);
+    var w3 = cb.w - w1 - w2 - p.gap * 2;
+    var x1 = cb.x;
     var x2 = x1 + w1 + p.gap;
     var x3 = x2 + w2 + p.gap;
-    var shapes = [
-      Shape(x1, CY, w1, CH, [0,0,0,0]),
-      Shape(x2, CY, w2, CH, [0,0,0,0]),
-      Shape(x3, CY, w3, CH, [0,0,0,0])
+    var fragments = [
+      SmartFragment(x1, cb.y, w1, cb.h, { relationship: 'associated' }),
+      SmartFragment(x2, cb.y, w2, cb.h, { relationship: 'associated' }),
+      SmartFragment(x3, cb.y, w3, cb.h, { relationship: 'associated' })
     ];
-    return assignRadii(shapes, p.gap, p.rOuter, p.rInner);
+    applySizeCategories(fragments);
+    return assignRadii(fragments, p.gap, p.rOuter, p.rInner);
   }
 
   function contentSlices(p) {
-    var leftW = Math.floor((CW - p.gap) * 0.6);
-    var rightW = CW - leftW - p.gap;
-    var rightX = CX + leftW + p.gap;
-    var topH = Math.floor((CH - p.gap) * 0.55);
-    var botH = CH - topH - p.gap;
-    var shapes = [
-      Shape(CX, CY, leftW, CH, [0,0,0,0]),
-      Shape(rightX, CY, rightW, topH, [0,0,0,0]),
-      Shape(rightX, CY + topH + p.gap, rightW, botH, [0,0,0,0])
+    var cb = contentBounds();
+    var leftW = Math.floor((cb.w - p.gap) * 0.6);
+    var rightW = cb.w - leftW - p.gap;
+    var rightX = cb.x + leftW + p.gap;
+    var topH = Math.floor((cb.h - p.gap) * 0.55);
+    var botH = cb.h - topH - p.gap;
+    var fragments = [
+      SmartFragment(cb.x, cb.y, leftW, cb.h, {
+        relationship: 'associated',
+        padding: [Tokens.spacing.lg, Tokens.spacing.sm, Tokens.spacing.lg, Tokens.spacing.lg]
+      }),
+      SmartFragment(rightX, cb.y, rightW, topH, { relationship: 'associated' }),
+      SmartFragment(rightX, cb.y + topH + p.gap, rightW, botH, { relationship: 'associated' })
     ];
-    return assignRadii(shapes, p.gap, p.rOuter, p.rInner);
+    applySizeCategories(fragments);
+    return assignRadii(fragments, p.gap, p.rOuter, p.rInner);
   }
 
   function widgets(p) {
-    var colW = Math.floor((CW - p.gap) / 2);
-    var rowH = Math.floor((CH - p.gap) / 2);
-    var col2X = CX + colW + p.gap;
-    var row2Y = CY + rowH + p.gap;
-    // Adjust second column/row to fill remaining space
-    var col2W = CW - colW - p.gap;
-    var row2H = CH - rowH - p.gap;
-    var shapes = [
-      Shape(CX, CY, colW, rowH, [0,0,0,0]),
-      Shape(col2X, CY, col2W, rowH, [0,0,0,0]),
-      Shape(CX, row2Y, colW, row2H, [0,0,0,0]),
-      Shape(col2X, row2Y, col2W, row2H, [0,0,0,0])
+    var cb = contentBounds();
+    var colW = Math.floor((cb.w - p.gap) / 2);
+    var rowH = Math.floor((cb.h - p.gap) / 2);
+    var col2X = cb.x + colW + p.gap;
+    var row2Y = cb.y + rowH + p.gap;
+    var col2W = cb.w - colW - p.gap;
+    var row2H = cb.h - rowH - p.gap;
+    var fragments = [
+      SmartFragment(cb.x, cb.y, colW, rowH, { relationship: 'associated' }),
+      SmartFragment(col2X, cb.y, col2W, rowH, { relationship: 'associated' }),
+      SmartFragment(cb.x, row2Y, colW, row2H, { relationship: 'associated' }),
+      SmartFragment(col2X, row2Y, col2W, row2H, { relationship: 'associated' })
     ];
-    return assignRadii(shapes, p.gap, p.rOuter, p.rInner);
+    applySizeCategories(fragments);
+    return assignRadii(fragments, p.gap, p.rOuter, p.rInner);
   }
 
   // ─── NOTCH PRESETS ───
-  // The "bibble" is actually a "notch" — a secondary shape that embeds
-  // into a corner of the main container via boolean subtraction.
-  // Three sizes: Small (circle), Medium (rect 240px r), Large (rect 240px r)
+  // Notch eligibility is now checked — quarter-size fragments won't get notches
 
   function notchSmall(p) {
-    // Small circle notch — bottom right (arrow/close/next)
+    var cb = contentBounds();
     var notchSize = 64;
-    var shapes = [
-      Shape(CX, CY, CW, CH, [0,0,0,0]),
-      Shape(CX + CW - notchSize, CY + CH - notchSize, notchSize, notchSize, [0,0,0,0],
-        { notch: true, notchShape: 'circle', notchOffset: 8 })
-    ];
-    return assignRadii(shapes, p.gap, p.rOuter, p.rInner);
+    var container = SmartFragment(cb.x, cb.y, cb.w, cb.h, {
+      actionType: Tokens.ACTION_SECONDARY
+    });
+    container.sizeCategory = computeSizeCategory(container);
+    var fragments = [container];
+
+    if (isNotchEligible(container)) {
+      fragments.push(SmartFragment(
+        cb.x + cb.w - notchSize, cb.y + cb.h - notchSize, notchSize, notchSize, {
+          notch: true, notchShape: 'circle', notchOffset: Tokens.gaps.notch
+        }
+      ));
+    }
+    return assignRadii(fragments, p.gap, p.rOuter, p.rInner);
   }
 
   function notchMedium(p) {
-    // Medium rectangle notch — bottom right (timer, nav, action)
+    var cb = contentBounds();
     var notchW = 200;
     var notchH = 72;
-    var shapes = [
-      Shape(CX, CY, CW, CH, [0,0,0,0]),
-      Shape(CX + CW - notchW, CY + CH - notchH, notchW, notchH, [0,0,0,0],
-        { notch: true, notchShape: 'rect', notchOffset: 8 })
-    ];
-    return assignRadii(shapes, p.gap, p.rOuter, p.rInner);
+    var container = SmartFragment(cb.x, cb.y, cb.w, cb.h, {
+      actionType: Tokens.ACTION_PRIMARY
+    });
+    container.sizeCategory = computeSizeCategory(container);
+    var fragments = [container];
+
+    if (isNotchEligible(container)) {
+      fragments.push(SmartFragment(
+        cb.x + cb.w - notchW, cb.y + cb.h - notchH, notchW, notchH, {
+          notch: true, notchShape: 'rect', notchOffset: Tokens.gaps.notch,
+          radii: [Tokens.radii.notch, Tokens.radii.notch, Tokens.radii.notch, Tokens.radii.notch]
+        }
+      ));
+    }
+    return assignRadii(fragments, p.gap, p.rOuter, p.rInner);
   }
 
   function notchLarge(p) {
-    // Large rectangle notch — bottom right (notification, content card)
+    var cb = contentBounds();
     var notchW = 320;
     var notchH = 180;
-    var shapes = [
-      Shape(CX, CY, CW, CH, [0,0,0,0]),
-      Shape(CX + CW - notchW, CY + CH - notchH, notchW, notchH, [0,0,0,0],
-        { notch: true, notchShape: 'rect', notchOffset: 8 })
-    ];
-    return assignRadii(shapes, p.gap, p.rOuter, p.rInner);
+    var container = SmartFragment(cb.x, cb.y, cb.w, cb.h, {
+      actionType: Tokens.ACTION_PRIMARY
+    });
+    container.sizeCategory = computeSizeCategory(container);
+    var fragments = [container];
+
+    if (isNotchEligible(container)) {
+      fragments.push(SmartFragment(
+        cb.x + cb.w - notchW, cb.y + cb.h - notchH, notchW, notchH, {
+          notch: true, notchShape: 'rect', notchOffset: Tokens.gaps.notch,
+          radii: [Tokens.radii.notch, Tokens.radii.notch, Tokens.radii.notch, Tokens.radii.notch]
+        }
+      ));
+    }
+    return assignRadii(fragments, p.gap, p.rOuter, p.rInner);
   }
 
   function twoPanelNotch(p) {
-    // Two panel + small notch at junction (v27 pattern)
-    var leftW = Math.floor((CW - p.gap) * 0.4);
-    var rightW = CW - leftW - p.gap;
+    var cb = contentBounds();
+    var leftW = Math.floor((cb.w - p.gap) * 0.4);
+    var rightW = cb.w - leftW - p.gap;
     var notchSize = 64;
-    var shapes = [
-      Shape(CX, CY, leftW, CH, [0,0,0,0]),
-      Shape(CX + leftW + p.gap, CY, rightW, CH, [0,0,0,0]),
-      Shape(CX + leftW + p.gap - notchSize / 2, CY + CH - notchSize, notchSize, notchSize, [0,0,0,0],
-        { notch: true, notchShape: 'circle', notchOffset: 8 })
+    var fragments = [
+      SmartFragment(cb.x, cb.y, leftW, cb.h, {
+        relationship: 'associated',
+        actionType: Tokens.ACTION_SECONDARY
+      }),
+      SmartFragment(cb.x + leftW + p.gap, cb.y, rightW, cb.h, {
+        relationship: 'associated'
+      }),
+      SmartFragment(
+        cb.x + leftW + p.gap - notchSize / 2, cb.y + cb.h - notchSize, notchSize, notchSize, {
+          notch: true, notchShape: 'circle', notchOffset: Tokens.gaps.notch
+        }
+      )
     ];
-    return assignRadii(shapes, p.gap, p.rOuter, p.rInner);
+    applySizeCategories(fragments);
+    return assignRadii(fragments, p.gap, p.rOuter, p.rInner);
   }
 
   function twoPanelBlobBL(p) {
-    // Two panel + organic blob bottom-left (v28 pattern)
-    var leftW = Math.floor((CW - p.gap) * 0.55);
-    var rightW = CW - leftW - p.gap;
+    var cb = contentBounds();
+    var leftW = Math.floor((cb.w - p.gap) * 0.55);
+    var rightW = cb.w - leftW - p.gap;
     var blobW = 200;
     var blobH = 160;
-    var shapes = [
-      Shape(CX, CY, leftW, CH, [0,0,0,0]),
-      Shape(CX + leftW + p.gap, CY, rightW, CH, [0,0,0,0]),
-      Shape(CX, CY + CH - blobH, blobW, blobH, [0,0,0,0],
-        { notch: true, notchShape: 'rect', notchOffset: 8 })
+    var fragments = [
+      SmartFragment(cb.x, cb.y, leftW, cb.h, {
+        relationship: 'associated',
+        actionType: Tokens.ACTION_PRIMARY
+      }),
+      SmartFragment(cb.x + leftW + p.gap, cb.y, rightW, cb.h, {
+        relationship: 'associated'
+      }),
+      SmartFragment(
+        cb.x, cb.y + cb.h - blobH, blobW, blobH, {
+          notch: true, notchShape: 'rect', notchOffset: Tokens.gaps.notch,
+          radii: [Tokens.radii.notch, Tokens.radii.notch, Tokens.radii.notch, Tokens.radii.notch]
+        }
+      )
     ];
-    return assignRadii(shapes, p.gap, p.rOuter, p.rInner);
+    applySizeCategories(fragments);
+    return assignRadii(fragments, p.gap, p.rOuter, p.rInner);
   }
 
   function uiFullScreen(p) {
-    // Full screen with small icons top-right and strip at bottom
+    var cb = contentBounds();
     var iconSize = 48;
     var stripH = 64;
-    var shapes = [
-      Shape(CX, CY, CW, CH - stripH - p.gap, [0,0,0,0]),
-      Shape(CX + CW - iconSize * 2 - p.gap, CY + CONTENT_PAD, iconSize, iconSize, [0,0,0,0]),
-      Shape(CX + CW - iconSize, CY + CONTENT_PAD, iconSize, iconSize, [0,0,0,0]),
-      Shape(CX, CY + CH - stripH, CW, stripH, [0,0,0,0])
+    var fragments = [
+      SmartFragment(cb.x, cb.y, cb.w, cb.h - stripH - p.gap, {
+        relationship: 'associated',
+        padding: [Tokens.spacing.lg, Tokens.spacing.lg, Tokens.spacing.md, Tokens.spacing.lg]
+      }),
+      SmartFragment(cb.x + cb.w - iconSize * 2 - p.gap, cb.y + Tokens.spacing.sm, iconSize, iconSize, {
+        relationship: 'disassociated'
+      }),
+      SmartFragment(cb.x + cb.w - iconSize, cb.y + Tokens.spacing.sm, iconSize, iconSize, {
+        relationship: 'disassociated'
+      }),
+      SmartFragment(cb.x, cb.y + cb.h - stripH, cb.w, stripH, {
+        relationship: 'associated',
+        padding: [Tokens.spacing.sm, Tokens.spacing.md, Tokens.spacing.sm, Tokens.spacing.md]
+      })
     ];
-    return assignRadii(shapes, p.gap, p.rOuter, p.rInner);
+    applySizeCategories(fragments);
+    return assignRadii(fragments, p.gap, p.rOuter, p.rInner);
+  }
+
+  // ─── COLLISION DETECTION ───
+  // Proximity-driven knockout computation inspired by Pete's Shapes canvas.
+  // When fragments overlap (or come within collisionGap distance), the smaller
+  // fragment's profile is boolean-subtracted from the larger one.
+
+  function computeCollisions(fragments, collisionGap) {
+    var collisions = [];
+    if (!fragments || fragments.length < 2) return collisions;
+
+    for (var i = 0; i < fragments.length; i++) {
+      for (var j = i + 1; j < fragments.length; j++) {
+        var a = fragments[i];
+        var b = fragments[j];
+        if (!a || !b || a.w < 1 || b.w < 1) continue;
+        if (a.notch || b.notch) continue; // authored notches handled separately
+
+        var aArea = a.w * a.h;
+        var bArea = b.w * b.h;
+
+        // Host = larger, Invader = smaller
+        var host = aArea >= bArea ? a : b;
+        var invader = aArea >= bArea ? b : a;
+        var hostIdx = aArea >= bArea ? i : j;
+        var invaderIdx = aArea >= bArea ? j : i;
+
+        // Expand invader bounds by collisionGap to detect proximity
+        var expand = collisionGap;
+        var ix1 = invader.x - expand;
+        var iy1 = invader.y - expand;
+        var ix2 = invader.x + invader.w + expand;
+        var iy2 = invader.y + invader.h + expand;
+
+        // Host bounds
+        var hx1 = host.x;
+        var hy1 = host.y;
+        var hx2 = host.x + host.w;
+        var hy2 = host.y + host.h;
+
+        // Check overlap between expanded invader and host
+        var overlapX1 = Math.max(ix1, hx1);
+        var overlapY1 = Math.max(iy1, hy1);
+        var overlapX2 = Math.min(ix2, hx2);
+        var overlapY2 = Math.min(iy2, hy2);
+
+        if (overlapX1 < overlapX2 && overlapY1 < overlapY2) {
+          // Determine approach edge: which side of the host is the invader nearest?
+          var invCX = invader.x + invader.w / 2;
+          var invCY = invader.y + invader.h / 2;
+          var hostCX = host.x + host.w / 2;
+          var hostCY = host.y + host.h / 2;
+
+          var dx = invCX - hostCX;
+          var dy = invCY - hostCY;
+          var edge;
+          if (Math.abs(dx) > Math.abs(dy)) {
+            edge = dx > 0 ? 'right' : 'left';
+          } else {
+            edge = dy > 0 ? 'bottom' : 'top';
+          }
+
+          collisions.push({
+            host: host,
+            hostIndex: hostIdx,
+            invader: invader,
+            invaderIndex: invaderIdx,
+            intersection: {
+              x: overlapX1,
+              y: overlapY1,
+              w: overlapX2 - overlapX1,
+              h: overlapY2 - overlapY1
+            },
+            edge: edge
+          });
+        }
+      }
+    }
+
+    return collisions;
   }
 
   // ─── PRESET REGISTRY ───
@@ -218,9 +392,37 @@ var Layouts = (function () {
     return preset.fn(params);
   }
 
+  // ─── ORGANIC KNOCKOUT LAYOUT ───
+  // Single container + circle, returns a scene descriptor for renderOrganic()
+
+  function organicKnockout(p) {
+    var cb = contentBounds(0);
+    var circleR = (p.notchSize || 200) / 2;
+    // Position circle fully inside container, touching top-right corner.
+    // Centre is one radius inward from each edge, then snap bounds to grid.
+    var cx = cb.x + cb.w - circleR;
+    var cy = cb.y + circleR;
+    // Snap circle bounds to nearest grid lines
+    var snappedRight = VectorGrid.snapToGrid(cx + circleR);
+    var snappedTop = VectorGrid.snapToGrid(cy - circleR);
+    cx = snappedRight - circleR;
+    cy = snappedTop + circleR;
+    return {
+      container: { x: cb.x, y: cb.y, w: cb.w, h: cb.h },
+      circle: { cx: cx, cy: cy, r: circleR },
+      notchOffset: p.notchOffset !== undefined ? p.notchOffset : Tokens.gaps.notch,
+      rOrganic: p.rOrganic !== undefined ? p.rOrganic : Tokens.radii.organic,
+      rBase: p.rOuter !== undefined ? p.rOuter : Tokens.radii.outer
+    };
+  }
+
   return {
     PRESETS: PRESETS,
     generate: generate,
-    assignRadii: assignRadii
+    assignRadii: assignRadii,
+    isNotchEligible: isNotchEligible,
+    selectNotchSize: selectNotchSize,
+    computeCollisions: computeCollisions,
+    organicKnockout: organicKnockout
   };
 })();

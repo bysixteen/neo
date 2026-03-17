@@ -1,5 +1,5 @@
-// Layout state definitions — exact pixel values from the design rules
-// Each state is an array of shapes with position, size, and per-corner radii
+// Layout state definitions — Neo-EDL Smart Fragment model
+// Each state is an array of SmartFragments with position, size, padding, and metadata
 
 var CANVAS_W = 1920;
 var CANVAS_H = 1080;
@@ -14,34 +14,91 @@ var CONTENT_X = CHROME_PAD;
 var CONTENT_Y = CHROME_PAD + STATUS_H;
 var CONTENT_W = CANVAS_W - CHROME_PAD * 2;
 var CONTENT_H = CANVAS_H - CHROME_PAD * 2 - STATUS_H;
-var CONTENT_PAD = 16; // inner padding within content area
 
-// Shorthand for content-relative positioning
+// ─── BACKWARDS COMPAT ───
+// These derived constants are kept for legacy code.
+// New code should use contentBounds() or Tokens.* directly.
+var CONTENT_PAD = 16;
 var CX = CONTENT_X + CONTENT_PAD;
 var CY = CONTENT_Y + CONTENT_PAD;
 var CW = CONTENT_W - CONTENT_PAD * 2;
 var CH = CONTENT_H - CONTENT_PAD * 2;
 
-var GAP_RELATED = 8;
-var GAP_UNRELATED = 24;
-var R_OUTER = 80;
-var R_INNER = 40;
+// Legacy gap/radii aliases — reference Tokens.* in new code
+var GAP_RELATED = Tokens.gaps.associated;
+var GAP_UNRELATED = Tokens.gaps.disassociated;
+var R_OUTER = Tokens.radii.outer;
+var R_INNER = Tokens.radii.inner;
 
-// Shape factory
-function Shape(x, y, w, h, radii, opts) {
-  var s = {
-    x: x, y: y, w: w, h: h,
-    radii: radii || [R_OUTER, R_OUTER, R_OUTER, R_OUTER],
-    opacity: 1,
-    scale: 1
+// ─── CONTENT BOUNDS HELPER ───
+// Returns the usable content area with a given padding inset
+function contentBounds(pad) {
+  var p = (pad !== undefined) ? pad : Tokens.spacing.md;
+  return {
+    x: CHROME_PAD + p,
+    y: CHROME_PAD + STATUS_H + p,
+    w: CANVAS_W - CHROME_PAD * 2 - p * 2,
+    h: CANVAS_H - CHROME_PAD * 2 - STATUS_H - p * 2
   };
-  if (opts) {
-    for (var k in opts) s[k] = opts[k];
-  }
-  return s;
+}
+
+// ─── SIZE CATEGORY ───
+function computeSizeCategory(fragment) {
+  var canvasArea = CANVAS_W * CANVAS_H;
+  var fragmentArea = fragment.w * fragment.h;
+  var ratio = fragmentArea / canvasArea;
+  if (ratio > 0.75) return Tokens.SIZE_FULL;
+  if (ratio >= 0.25) return Tokens.SIZE_HALF;
+  return Tokens.SIZE_QUARTER;
+}
+
+// ─── SMART FRAGMENT FACTORY ───
+function SmartFragment(x, y, w, h, opts) {
+  var o = opts || {};
+  var defaultRadii = [Tokens.radii.outer, Tokens.radii.outer,
+                      Tokens.radii.outer, Tokens.radii.outer];
+  return {
+    // Geometry
+    x: x, y: y, w: w, h: h,
+    radii: o.radii || defaultRadii,
+    opacity: o.opacity !== undefined ? o.opacity : 1,
+    scale: o.scale !== undefined ? o.scale : 1,
+
+    // Tokenised padding [top, right, bottom, left]
+    padding: o.padding || [
+      Tokens.spacing.md, Tokens.spacing.md,
+      Tokens.spacing.md, Tokens.spacing.md
+    ],
+
+    // Relationship to neighbours
+    relationship: o.relationship || 'disassociated',
+
+    // Action hierarchy (for notch eligibility)
+    actionType: o.actionType || Tokens.ACTION_NONE,
+
+    // Size category
+    sizeCategory: o.sizeCategory || null,
+
+    // Notch metadata
+    notch: o.notch || false,
+    notchShape: o.notchShape || null,
+    notchOffset: o.notchOffset || Tokens.gaps.notch,
+
+    // Chrome flag
+    chrome: o.chrome || false,
+    chromeType: o.chromeType || null
+  };
+}
+
+// Legacy Shape() alias — delegates to SmartFragment
+function Shape(x, y, w, h, radii, opts) {
+  var o = opts || {};
+  o.radii = radii || [R_OUTER, R_OUTER, R_OUTER, R_OUTER];
+  return SmartFragment(x, y, w, h, o);
 }
 
 // ─── DEMO DEFINITIONS ───
+// Legacy demos using Shape() — still work via the alias
 
 var DEMOS = {
   bibble: {
@@ -55,10 +112,8 @@ var DEMOS = {
       },
       bibble: function () {
         var bibbleSize = 88;
-        var mainW = CW;
-        var mainH = CH - bibbleSize - GAP_RELATED;
         return [
-          Shape(CX, CY, mainW, CH, [R_OUTER, R_OUTER, R_INNER, R_OUTER]),
+          Shape(CX, CY, CW, CH, [R_OUTER, R_OUTER, R_INNER, R_OUTER]),
           Shape(CX + CW - bibbleSize, CY + CH - bibbleSize, bibbleSize, bibbleSize,
             [R_INNER, R_INNER, R_OUTER, R_INNER], { scale: 1 })
         ];

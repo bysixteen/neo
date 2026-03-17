@@ -7,18 +7,18 @@ var Renderer = (function () {
   var offsetX = 0;
   var offsetY = 0;
 
-  // Navy monochrome palette
+  // Navy monochrome palette — from Manus visual spec
   var SHAPE_FILLS = [
-    'rgba(42, 58, 90, 0.95)',
-    'rgba(48, 65, 100, 0.95)',
-    'rgba(38, 54, 85, 0.95)',
-    'rgba(55, 72, 110, 0.95)',
-    'rgba(45, 62, 95, 0.95)',
-    'rgba(50, 68, 105, 0.95)'
+    'rgba(91, 141, 184, 0.90)',
+    'rgba(91, 141, 184, 0.90)',
+    'rgba(91, 141, 184, 0.90)',
+    'rgba(91, 141, 184, 0.90)',
+    'rgba(91, 141, 184, 0.90)',
+    'rgba(91, 141, 184, 0.90)'
   ];
 
-  var BG_COLOR = '#0d1520';
-  var CHROME_COLOR = '#0f1a2a';
+  var BG_COLOR = '#0B1929';
+  var CHROME_COLOR = '#132238';
   var STATUS_TEXT = 'rgba(255, 255, 255, 0.5)';
   var STATUS_ICON = 'rgba(255, 255, 255, 0.35)';
 
@@ -70,11 +70,22 @@ var Renderer = (function () {
       drawGrid(shapes, display.showGridBeyond, display.showPoints);
     }
 
+    // Compute collision knockouts from proximity
+    var collisionGap = display.collisionGap !== undefined ? display.collisionGap : 0;
+    var collisions = Layouts.computeCollisions(shapes, collisionGap);
+
     // Shapes — orthogonal or diagonal
     if (diagonalPanels && diagonalPanels.length > 0) {
       drawDiagonalPanels(diagonalPanels, display);
     } else {
-      drawShapesWithNotches(shapes, display);
+      drawShapesWithNotches(shapes, display, collisions);
+    }
+
+    // Padding insets (dashed inner rectangles)
+    if (display.showPadding) {
+      for (var pi = 0; pi < shapes.length; pi++) {
+        drawPaddingInsets(shapes[pi]);
+      }
     }
 
     // Annotations (on top of shapes)
@@ -82,6 +93,35 @@ var Renderer = (function () {
       drawGapMarkers(shapes);
     }
 
+    ctx.restore();
+  }
+
+  // ─── PADDING VISUALISATION ───
+  function drawPaddingInsets(fragment) {
+    if (!fragment || fragment.w < 1 || fragment.h < 1) return;
+    if (fragment.notch || fragment.chrome) return;
+    var p = fragment.padding;
+    if (!p) return;
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(100, 255, 150, 0.25)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(
+      fragment.x + p[3],
+      fragment.y + p[0],
+      fragment.w - p[3] - p[1],
+      fragment.h - p[0] - p[2]
+    );
+    ctx.setLineDash([]);
+
+    // Padding value label (top-left corner, inside the padding area)
+    ctx.font = '9px -apple-system, system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(100, 255, 150, 0.4)';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(p[0] + '/' + p[1] + '/' + p[2] + '/' + p[3],
+      fragment.x + p[3] + 4, fragment.y + p[0] + 2);
     ctx.restore();
   }
 
@@ -94,7 +134,7 @@ var Renderer = (function () {
       [DEVICE_RADIUS, DEVICE_RADIUS, DEVICE_RADIUS, DEVICE_RADIUS]);
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+    ctx.strokeStyle = 'rgba(42, 74, 107, 0.40)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     roundedRectPath(ctx, 0, 0, CANVAS_W, CANVAS_H,
@@ -170,92 +210,51 @@ var Renderer = (function () {
     ctx.restore();
   }
 
-  // ─── CIRCLE GRID ───
-  // The EDL grid uses circles arranged in a regular pattern.
-  // Shapes sit on top; circles are visible through the gaps.
+  // ─── VECTOR GRID ───
+  // Uniform subtle grid — all lines same colour and weight.
+  // Extends beyond device frame on all sides.
+
+  var GRID_COLOR = 'rgba(30, 58, 85, 0.30)';
+  var GRID_WIDTH = 0.5;
 
   function drawGrid(shapes, showBeyond, showPoints) {
     var gridState = VectorGrid.compute(shapes);
-    var colW = CW / gridState.cols;
-    var rowH = CH / gridState.rows;
-    var circleR = Math.min(colW, rowH) * 0.38; // circle size relative to cell
+    var colW = CANVAS_W / gridState.cols;
+    var rowH = CANVAS_H / gridState.rows;
 
-    var extend = showBeyond ? 1 : 0; // extra rows/cols beyond frame
+    var extend = 3; // always extend beyond frame
 
-    // Draw circles at each grid intersection
-    for (var ci = -extend; ci <= gridState.cols + extend; ci++) {
-      for (var cj = -extend; cj <= gridState.rows + extend; cj++) {
-        var cx = CX + ci * colW + colW / 2;
-        var cy = CY + cj * rowH + rowH / 2;
+    ctx.strokeStyle = GRID_COLOR;
+    ctx.lineWidth = GRID_WIDTH;
 
-        // Check if this circle is inside any shape (occluded)
-        var occluded = false;
-        for (var s = 0; s < shapes.length; s++) {
-          var sh = shapes[s];
-          if (sh && sh.w > 1 && cx > sh.x && cx < sh.x + sh.w && cy > sh.y && cy < sh.y + sh.h) {
-            occluded = true;
-            break;
-          }
-        }
-
-        // Check if near an attached grid line
-        var nearAttached = false;
-        for (var vi = 0; vi < gridState.vertical.length; vi++) {
-          if (gridState.vertical[vi].attached && Math.abs(cx - gridState.vertical[vi].x) < colW * 0.6) {
-            nearAttached = true;
-            break;
-          }
-        }
-        if (!nearAttached) {
-          for (var hj = 0; hj < gridState.horizontal.length; hj++) {
-            if (gridState.horizontal[hj].attached && Math.abs(cy - gridState.horizontal[hj].y) < rowH * 0.6) {
-              nearAttached = true;
-              break;
-            }
-          }
-        }
-
-        var alpha = occluded ? 0.03 : (nearAttached ? 0.12 : 0.06);
-
-        ctx.fillStyle = 'rgba(100, 160, 255, ' + alpha + ')';
-        ctx.beginPath();
-        ctx.arc(cx, cy, circleR, 0, Math.PI * 2);
-        ctx.fill();
-      }
+    // Vertical lines
+    for (var vi = -extend; vi <= gridState.cols + extend; vi++) {
+      var vx = vi * colW;
+      ctx.beginPath();
+      ctx.moveTo(vx, -extend * rowH);
+      ctx.lineTo(vx, CANVAS_H + extend * rowH);
+      ctx.stroke();
     }
 
-    // Attachment point labels at grid intersections
-    if (showPoints) {
-      ctx.font = '8px -apple-system, system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      for (var pi = 0; pi < gridState.vertical.length; pi++) {
-        for (var pj = 0; pj < gridState.horizontal.length; pj++) {
-          var vl = gridState.vertical[pi];
-          var hl = gridState.horizontal[pj];
-
-          if (vl.attached && hl.attached) {
-            ctx.fillStyle = 'rgba(100, 200, 255, 0.6)';
-            ctx.beginPath();
-            ctx.arc(vl.x, hl.y, 4, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = 'rgba(100, 200, 255, 0.7)';
-            ctx.fillText(pi + ',' + pj, vl.x, hl.y - 10);
-          }
-        }
-      }
+    // Horizontal lines
+    for (var hi = -extend; hi <= gridState.rows + extend; hi++) {
+      var hy = hi * rowH;
+      ctx.beginPath();
+      ctx.moveTo(-extend * colW, hy);
+      ctx.lineTo(CANVAS_W + extend * colW, hy);
+      ctx.stroke();
     }
   }
 
   // ─── SHAPES (ORTHOGONAL) ───
 
-  // Two-pass rendering: containers first, then boolean-subtract notch holes,
-  // then draw notch shapes. Uses an offscreen canvas to isolate the
-  // destination-out compositing from the background/grid.
-  function drawShapesWithNotches(shapes, display) {
-    // Separate containers from notches
+  // Multi-pass rendering with boolean subtraction for both authored notches
+  // and proximity-driven collision knockouts. Uses an offscreen canvas to
+  // isolate destination-out compositing from the background/grid.
+  function drawShapesWithNotches(shapes, display, collisions) {
+    collisions = collisions || [];
+
+    // Separate containers from authored notches
     var containers = [];
     var notches = [];
     for (var i = 0; i < shapes.length; i++) {
@@ -266,8 +265,14 @@ var Renderer = (function () {
       }
     }
 
-    // If no notches, draw directly (fast path)
-    if (notches.length === 0) {
+    // Build set of host indices (fragments that get collision knockouts)
+    var hostIndices = {};
+    for (var ci = 0; ci < collisions.length; ci++) {
+      hostIndices[collisions[ci].hostIndex] = true;
+    }
+
+    // Fast path: no notches and no collisions — draw directly
+    if (notches.length === 0 && collisions.length === 0) {
       for (var c = 0; c < containers.length; c++) {
         drawShape(containers[c].shape, containers[c].index, display);
       }
@@ -284,41 +289,139 @@ var Renderer = (function () {
     var mainCtx = ctx;
     ctx = offCtx;
 
-    // Pass 1: draw containers
-    for (var c2 = 0; c2 < containers.length; c2++) {
-      drawShape(containers[c2].shape, containers[c2].index, display);
+    // Pass 1: draw containers (sorted largest first so hosts draw first)
+    var sortedContainers = containers.slice().sort(function (a, b) {
+      return (b.shape.w * b.shape.h) - (a.shape.w * a.shape.h);
+    });
+    for (var c2 = 0; c2 < sortedContainers.length; c2++) {
+      drawShape(sortedContainers[c2].shape, sortedContainers[c2].index, display);
     }
 
-    // Pass 2: cut notch holes (expanded by notchOffset)
+    // Pass 2a: cut authored notch holes (expanded by notchOffset)
     for (var n = 0; n < notches.length; n++) {
       var ns = notches[n].shape;
       var off = ns.notchOffset || 8;
+      cutNotchHole(ns, off);
+    }
+
+    // Pass 2b: cut collision knockout holes
+    for (var ck = 0; ck < collisions.length; ck++) {
+      var col = collisions[ck];
+      var inv = col.invader;
+      var knockoutOff = Tokens.gaps.notch; // 8px expansion around invader profile
+
       ctx.save();
       ctx.globalCompositeOperation = 'destination-out';
       ctx.fillStyle = 'rgba(0,0,0,1)';
       ctx.beginPath();
-      if (ns.notchShape === 'circle') {
-        // Circle cut-out expanded by offset
-        var cr = Math.max(ns.w, ns.h) / 2 + off;
-        ctx.arc(ns.x + ns.w / 2, ns.y + ns.h / 2, cr, 0, Math.PI * 2);
-      } else {
-        // Rect cut-out with 240px radius, expanded by offset
-        roundedRectPath(ctx, ns.x - off, ns.y - off,
-          ns.w + off * 2, ns.h + off * 2,
-          [240, 240, 240, 240]);
-      }
+      // Use invader's radii to match its profile
+      roundedRectPath(ctx,
+        inv.x - knockoutOff, inv.y - knockoutOff,
+        inv.w + knockoutOff * 2, inv.h + knockoutOff * 2,
+        inv.radii || [Tokens.radii.outer, Tokens.radii.outer, Tokens.radii.outer, Tokens.radii.outer]);
       ctx.fill();
+      ctx.restore();
+
+      // Inner highlight along knockout edge
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = 'rgba(120, 160, 240, 0.15)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      roundedRectPath(ctx,
+        inv.x - knockoutOff - 1, inv.y - knockoutOff - 1,
+        inv.w + (knockoutOff + 1) * 2, inv.h + (knockoutOff + 1) * 2,
+        inv.radii || [Tokens.radii.outer, Tokens.radii.outer, Tokens.radii.outer, Tokens.radii.outer]);
+      ctx.stroke();
       ctx.restore();
     }
 
-    // Pass 3: draw notch shapes
+    // Pass 3: draw authored notch shapes
     for (var n2 = 0; n2 < notches.length; n2++) {
-      drawShape(notches[n2].shape, notches[n2].index, display);
+      if (display.showRadii) {
+        var nShape = notches[n2].shape;
+        if (nShape && nShape.w > 1 && nShape.h > 1) {
+          ctx.save();
+          ctx.fillStyle = 'rgba(30, 90, 100, 0.95)';
+          ctx.beginPath();
+          if (nShape.notchShape === 'circle') {
+            var nR = Math.min(nShape.w, nShape.h) / 2;
+            ctx.arc(nShape.x + nShape.w / 2, nShape.y + nShape.h / 2, nR, 0, Math.PI * 2);
+          } else {
+            roundedRectPath(ctx, nShape.x, nShape.y, nShape.w, nShape.h, nShape.radii);
+          }
+          ctx.fill();
+          ctx.restore();
+          if (display.showRadii) drawCornerLabels(nShape);
+          if (display.showDims) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+            ctx.font = '11px -apple-system, system-ui, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(Math.round(nShape.w) + ' \u00D7 ' + Math.round(nShape.h),
+              nShape.x + nShape.w - 12, nShape.y + nShape.h - 10);
+          }
+        }
+      } else {
+        drawShape(notches[n2].shape, notches[n2].index, display);
+      }
+    }
+
+    // Pass 4: notch/collision offset annotations
+    if (display.showGaps) {
+      for (var n3 = 0; n3 < notches.length; n3++) {
+        var ann = notches[n3].shape;
+        var annOff = ann.notchOffset || 8;
+        drawGapLabel(ann.x - annOff / 2, ann.y + ann.h / 2, annOff + 'px', true);
+      }
+      // Collision knockout gap annotations
+      for (var ck2 = 0; ck2 < collisions.length; ck2++) {
+        var col2 = collisions[ck2];
+        var kOff = Tokens.gaps.notch;
+        var midX = col2.invader.x + col2.invader.w / 2;
+        var midY = col2.invader.y + col2.invader.h / 2;
+        drawGapLabel(midX, midY, kOff + 'px', col2.edge === 'left' || col2.edge === 'right');
+      }
     }
 
     // Composite offscreen canvas onto main canvas
     ctx = mainCtx;
     ctx.drawImage(offCanvas, 0, 0);
+  }
+
+  // Helper: cut a single authored notch hole
+  function cutNotchHole(ns, off) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(0,0,0,1)';
+    ctx.beginPath();
+    if (ns.notchShape === 'circle') {
+      var cr = Math.max(ns.w, ns.h) / 2 + off;
+      ctx.arc(ns.x + ns.w / 2, ns.y + ns.h / 2, cr, 0, Math.PI * 2);
+    } else {
+      roundedRectPath(ctx, ns.x - off, ns.y - off,
+        ns.w + off * 2, ns.h + off * 2,
+        [240, 240, 240, 240]);
+    }
+    ctx.fill();
+    ctx.restore();
+
+    // Inner highlight along cut edge
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = 'rgba(120, 160, 240, 0.15)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    if (ns.notchShape === 'circle') {
+      var hlR = Math.max(ns.w, ns.h) / 2 + off + 1;
+      ctx.arc(ns.x + ns.w / 2, ns.y + ns.h / 2, hlR, 0, Math.PI * 2);
+    } else {
+      roundedRectPath(ctx, ns.x - off - 1, ns.y - off - 1,
+        ns.w + (off + 1) * 2, ns.h + (off + 1) * 2,
+        [240, 240, 240, 240]);
+    }
+    ctx.stroke();
+    ctx.restore();
   }
 
   function drawShape(shape, index, display) {
@@ -365,15 +468,19 @@ var Renderer = (function () {
 
     // Dimension labels
     if (display.showDims) {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
-      ctx.font = '10px -apple-system, system-ui, sans-serif';
+      var dimText = Math.round(shape.w) + ' \u00D7 ' + Math.round(shape.h);
+      ctx.font = '11px -apple-system, system-ui, sans-serif';
+      var dimW = ctx.measureText(dimText).width;
+      // Background
+      ctx.fillStyle = 'rgba(0, 10, 30, 0.5)';
+      ctx.beginPath();
+      roundedRectPath(ctx, shape.x + shape.w - dimW - 18, shape.y + shape.h - 24, dimW + 8, 16, [3, 3, 3, 3]);
+      ctx.fill();
+      // Text
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'bottom';
-      ctx.fillText(
-        Math.round(shape.w) + ' \u00D7 ' + Math.round(shape.h),
-        shape.x + shape.w - 12,
-        shape.y + shape.h - 10
-      );
+      ctx.fillText(dimText, shape.x + shape.w - 14, shape.y + shape.h - 10);
     }
 
     ctx.restore();
@@ -381,22 +488,33 @@ var Renderer = (function () {
 
   function drawCornerLabels(shape) {
     var corners = [
-      { x: shape.x + 14, y: shape.y + 16, r: shape.radii[0], align: 'left', baseline: 'top' },
-      { x: shape.x + shape.w - 14, y: shape.y + 16, r: shape.radii[1], align: 'right', baseline: 'top' },
-      { x: shape.x + shape.w - 14, y: shape.y + shape.h - 12, r: shape.radii[2], align: 'right', baseline: 'bottom' },
-      { x: shape.x + 14, y: shape.y + shape.h - 12, r: shape.radii[3], align: 'left', baseline: 'bottom' }
+      { x: shape.x + 16, y: shape.y + 18, r: shape.radii[0], align: 'left', baseline: 'top' },
+      { x: shape.x + shape.w - 16, y: shape.y + 18, r: shape.radii[1], align: 'right', baseline: 'top' },
+      { x: shape.x + shape.w - 16, y: shape.y + shape.h - 14, r: shape.radii[2], align: 'right', baseline: 'bottom' },
+      { x: shape.x + 16, y: shape.y + shape.h - 14, r: shape.radii[3], align: 'left', baseline: 'bottom' }
     ];
 
     for (var c = 0; c < corners.length; c++) {
       var corner = corners[c];
       var val = Math.round(corner.r);
-      var isOuter = val >= 60; // rough threshold
+      var isOuter = val >= 60;
+      var text = val + 'px';
 
-      ctx.fillStyle = isOuter ? 'rgba(255, 255, 255, 0.28)' : 'rgba(255, 200, 100, 0.4)';
-      ctx.font = (isOuter ? 'bold ' : '') + '10px -apple-system, system-ui, sans-serif';
+      ctx.font = (isOuter ? 'bold ' : '') + '12px -apple-system, system-ui, sans-serif';
+      var tw = ctx.measureText(text).width;
+
+      // Background pill for contrast
+      var bgX = corner.align === 'left' ? corner.x - 3 : corner.x - tw - 3;
+      var bgY = corner.baseline === 'top' ? corner.y - 2 : corner.y - 14;
+      ctx.fillStyle = 'rgba(0, 10, 30, 0.6)';
+      ctx.beginPath();
+      roundedRectPath(ctx, bgX, bgY, tw + 6, 16, [3, 3, 3, 3]);
+      ctx.fill();
+
+      ctx.fillStyle = isOuter ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 200, 100, 0.65)';
       ctx.textAlign = corner.align;
       ctx.textBaseline = corner.baseline;
-      ctx.fillText(val + 'px', corner.x, corner.y);
+      ctx.fillText(text, corner.x, corner.y);
     }
   }
 
@@ -449,16 +567,23 @@ var Renderer = (function () {
   }
 
   function drawGapLabel(x, y, text, horizontal) {
+    ctx.font = 'bold 11px -apple-system, system-ui, sans-serif';
+    var tw = ctx.measureText(text).width;
+    var pw = Math.max(tw + 10, 34);
+
     // Background pill
-    ctx.fillStyle = 'rgba(255, 180, 60, 0.15)';
-    var tw = ctx.measureText ? 28 : 28;
+    ctx.fillStyle = 'rgba(0, 10, 30, 0.7)';
     ctx.beginPath();
-    roundedRectPath(ctx, x - 16, y - 8, 32, 16, [4, 4, 4, 4]);
+    roundedRectPath(ctx, x - pw / 2, y - 9, pw, 18, [4, 4, 4, 4]);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 200, 100, 0.3)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    roundedRectPath(ctx, x - pw / 2, y - 9, pw, 18, [4, 4, 4, 4]);
+    ctx.stroke();
 
     // Text
-    ctx.fillStyle = 'rgba(255, 200, 100, 0.7)';
-    ctx.font = 'bold 9px -apple-system, system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255, 200, 100, 0.85)';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, x, y);
@@ -541,10 +666,433 @@ var Renderer = (function () {
     ctx.closePath();
   }
 
+  // ─── ORGANIC KNOCKOUT ───
+  // Single compound path that traces the container outline and detours
+  // inward around a circular notch with smooth fillet transitions.
+  // Replaces the destination-out boolean subtraction approach.
+
+  function renderOrganic(scene, display) {
+    var dpr = devicePixelRatio;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    ctx.fillStyle = BG_COLOR;
+    ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+
+    ctx.save();
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(scale, scale);
+
+    // Device frame
+    drawDeviceFrame();
+
+    // Container with organic knockout
+    ctx.fillStyle = SHAPE_FILLS[0];
+    ctx.beginPath();
+    organicKnockoutPath(ctx, scene.container, scene.circle,
+      scene.notchOffset, scene.rOrganic, scene.rBase);
+    ctx.fill();
+
+    // Subtle top highlight on container
+    ctx.save();
+    ctx.beginPath();
+    organicKnockoutPath(ctx, scene.container, scene.circle,
+      scene.notchOffset, scene.rOrganic, scene.rBase);
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(100, 140, 220, 0.06)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(scene.container.x + scene.rBase, scene.container.y + 0.5);
+    // Top highlight stops before the fillet
+    var rCut = scene.circle.r + scene.notchOffset;
+    var dyTop = scene.container.y - scene.circle.cy;
+    var topStopX = scene.circle.cx;
+    if (Math.abs(dyTop) < rCut) {
+      topStopX = scene.circle.cx - Math.sqrt(rCut * rCut - dyTop * dyTop) - scene.rOrganic;
+    }
+    ctx.lineTo(Math.min(topStopX, scene.container.x + scene.container.w - scene.rBase), scene.container.y + 0.5);
+    ctx.stroke();
+    ctx.restore();
+
+    // Inner highlight along the cut edge — clipped to container
+    ctx.save();
+    ctx.beginPath();
+    roundedRectPath(ctx, scene.container.x, scene.container.y,
+      scene.container.w, scene.container.h,
+      [scene.rBase, scene.rBase, scene.rBase, scene.rBase]);
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(120, 160, 240, 0.12)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(scene.circle.cx, scene.circle.cy, rCut + 1, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // Circle (notch shape) — deformed where it meets container edges
+    // Both shapes squeeze equally at the contact zone (mutual deformation)
+    ctx.fillStyle = SHAPE_FILLS[1];
+    ctx.beginPath();
+    drawDeformedCircle(ctx, scene.circle.cx, scene.circle.cy, scene.circle.r,
+      scene.container, scene.rOrganic, scene.notchOffset);
+    ctx.fill();
+
+    // Circle highlight (deformed path)
+    ctx.strokeStyle = 'rgba(100, 140, 220, 0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    drawDeformedCircle(ctx, scene.circle.cx, scene.circle.cy, scene.circle.r - 0.5,
+      scene.container, scene.rOrganic, scene.notchOffset);
+    ctx.stroke();
+
+    // Grid overlay — on top of shapes
+    if (display.showGrid) {
+      var gridShapes = [
+        { x: scene.container.x, y: scene.container.y,
+          w: scene.container.w, h: scene.container.h }
+      ];
+      drawGrid(gridShapes, display.showGridBeyond, display.showPoints);
+    }
+
+    // Annotations
+    if (display.showRadii) {
+      // Container corner labels
+      var cr = scene.rBase;
+      var corners = [
+        { x: scene.container.x + 16, y: scene.container.y + 18, r: cr, align: 'left', baseline: 'top' },
+        { x: scene.container.x + scene.container.w - 16, y: scene.container.y + scene.container.h - 14, r: cr, align: 'right', baseline: 'bottom' },
+        { x: scene.container.x + 16, y: scene.container.y + scene.container.h - 14, r: cr, align: 'left', baseline: 'bottom' }
+      ];
+      for (var ci = 0; ci < corners.length; ci++) {
+        drawOrganicLabel(corners[ci].x, corners[ci].y, Math.round(corners[ci].r) + 'px',
+          corners[ci].align, corners[ci].baseline, false);
+      }
+      // Organic radius label near the fillet
+      var orgLabelX = scene.circle.cx - scene.circle.r - scene.rOrganic * 0.5;
+      var orgLabelY = scene.circle.cy + scene.circle.r * 0.5;
+      drawOrganicLabel(orgLabelX, orgLabelY,
+        'organic ' + Math.round(scene.rOrganic) + 'px', 'center', 'top', true);
+      // Circle radius label (centred in circle)
+      var rLabelX = scene.circle.cx;
+      var rLabelY = scene.circle.cy;
+      drawOrganicLabel(rLabelX, rLabelY,
+        'r' + Math.round(scene.circle.r), 'center', 'middle', true);
+    }
+
+    if (display.showGaps) {
+      // Notch offset annotation (inside the visible area)
+      var gapLabelX = scene.circle.cx - scene.circle.r - scene.notchOffset / 2;
+      var gapLabelY = scene.circle.cy + scene.circle.r * 0.5;
+      drawGapLabel(gapLabelX, gapLabelY, scene.notchOffset + 'px', true);
+    }
+
+    if (display.showDims) {
+      var dimText = Math.round(scene.container.w) + ' \u00D7 ' + Math.round(scene.container.h);
+      ctx.font = '11px -apple-system, system-ui, sans-serif';
+      var dimW = ctx.measureText(dimText).width;
+      ctx.fillStyle = 'rgba(0, 10, 30, 0.5)';
+      ctx.beginPath();
+      roundedRectPath(ctx, scene.container.x + scene.container.w - dimW - 18,
+        scene.container.y + scene.container.h - 24, dimW + 8, 16, [3, 3, 3, 3]);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(dimText, scene.container.x + scene.container.w - 14,
+        scene.container.y + scene.container.h - 10);
+    }
+
+    ctx.restore();
+  }
+
+  function drawOrganicLabel(x, y, text, align, baseline, accent) {
+    ctx.font = (accent ? 'bold ' : '') + '12px -apple-system, system-ui, sans-serif';
+    var tw = ctx.measureText(text).width;
+    var bgX = align === 'left' ? x - 3 : align === 'right' ? x - tw - 3 : x - tw / 2 - 3;
+    var bgY = baseline === 'top' ? y - 2 : baseline === 'bottom' ? y - 14 : y - 8;
+    ctx.fillStyle = 'rgba(0, 10, 30, 0.6)';
+    ctx.beginPath();
+    roundedRectPath(ctx, bgX, bgY, tw + 6, 16, [3, 3, 3, 3]);
+    ctx.fill();
+    ctx.fillStyle = accent ? 'rgba(100, 255, 150, 0.7)' : 'rgba(255, 255, 255, 0.5)';
+    ctx.textAlign = align;
+    ctx.textBaseline = baseline;
+    ctx.fillText(text, x, y);
+  }
+
+  // ─── COMPOUND PATH: container with organic circular cutout ───
+  //
+  // Traces the container outline clockwise, detouring inward around the
+  // circle with smooth fillet arcs at the transition points.
+  //
+  // For a circle at the top-right area:
+  //   top edge → fillet arc → circle arc (concave, CCW) → fillet arc → right edge
+  //
+  // The fillet arcs are tangent to both the straight edge and the cut circle,
+  // creating a smooth tangent-continuous transition.
+
+  function organicKnockoutPath(ctx, rect, circle, notchOffset, rOrganic, rBase) {
+    var rCut = circle.r + notchOffset;
+    var cx = circle.cx;
+    var cy = circle.cy;
+
+    // Check if circle actually intersects the container edges
+    var topEdge = rect.y;
+    var rightEdge = rect.x + rect.w;
+    var bottomEdge = rect.y + rect.h;
+    var leftEdge = rect.x;
+
+    // Does the cut circle cross the top edge?
+    var dyTop = topEdge - cy;
+    var crossesTop = Math.abs(dyTop) < rCut && cx > leftEdge && cx <= rightEdge;
+
+    // Does the cut circle cross the right edge?
+    var dxRight = rightEdge - cx;
+    var crossesRight = Math.abs(dxRight) < rCut && cy >= topEdge && cy < bottomEdge;
+
+    // If no intersection, draw a standard rounded rect
+    if (!crossesTop && !crossesRight) {
+      roundedRectPath(ctx, rect.x, rect.y, rect.w, rect.h,
+        [rBase, rBase, rBase, rBase]);
+      return;
+    }
+
+    // Clamp organic radius to avoid degenerate geometry
+    var rF = Math.max(0, Math.min(rOrganic, rCut * 0.8));
+
+    // ── Compute fillet for TOP edge ──
+    var topFillet = null;
+    if (crossesTop) {
+      topFillet = computeTopFillet(rect, cx, cy, rCut, rF);
+    }
+
+    // ── Compute fillet for RIGHT edge ──
+    var rightFillet = null;
+    if (crossesRight) {
+      rightFillet = computeRightFillet(rect, cx, cy, rCut, rF);
+    }
+
+    // ── Build the path ──
+    // Start from top-left corner
+    ctx.moveTo(leftEdge + rBase, topEdge);
+
+    if (topFillet && rightFillet) {
+      // Top edge → left fillet → circle arc → right fillet → right edge
+      ctx.lineTo(topFillet.edgeTangent.x, topFillet.edgeTangent.y);
+
+      // Left fillet arc: from edge tangent to circle tangent
+      ctx.arc(topFillet.centre.x, topFillet.centre.y, rF,
+        topFillet.startAngle, topFillet.endAngle, false);
+
+      // Concave circle arc: from left fillet's circle tangent to right fillet's circle tangent
+      var circArcStart = Math.atan2(topFillet.circleTangent.y - cy, topFillet.circleTangent.x - cx);
+      var circArcEnd = Math.atan2(rightFillet.circleTangent.y - cy, rightFillet.circleTangent.x - cx);
+      ctx.arc(cx, cy, rCut, circArcStart, circArcEnd, true); // CCW = concave
+
+      // Right fillet arc: from circle tangent to edge tangent
+      ctx.arc(rightFillet.centre.x, rightFillet.centre.y, rF,
+        rightFillet.startAngle, rightFillet.endAngle, false);
+
+      // Continue down the right edge
+      ctx.lineTo(rightEdge, bottomEdge - rBase);
+    } else if (topFillet) {
+      // Circle only crosses top, not right — simplified
+      ctx.lineTo(topFillet.edgeTangent.x, topFillet.edgeTangent.y);
+      ctx.arc(topFillet.centre.x, topFillet.centre.y, rF,
+        topFillet.startAngle, topFillet.endAngle, false);
+      // Arc back to the top-right corner area
+      var trAngle = Math.atan2(topEdge - cy, rightEdge - cx);
+      ctx.arc(cx, cy, rCut, Math.atan2(topFillet.circleTangent.y - cy, topFillet.circleTangent.x - cx), trAngle, true);
+      ctx.lineTo(rightEdge, topEdge);
+      ctx.lineTo(rightEdge, bottomEdge - rBase);
+    } else {
+      // Standard top-right corner
+      ctx.lineTo(rightEdge - rBase, topEdge);
+      ctx.arcTo(rightEdge, topEdge, rightEdge, topEdge + rBase, rBase);
+      ctx.lineTo(rightEdge, bottomEdge - rBase);
+    }
+
+    // Bottom-right corner (standard)
+    ctx.arcTo(rightEdge, bottomEdge, rightEdge - rBase, bottomEdge, rBase);
+
+    // Bottom edge
+    ctx.lineTo(leftEdge + rBase, bottomEdge);
+
+    // Bottom-left corner (standard)
+    ctx.arcTo(leftEdge, bottomEdge, leftEdge, bottomEdge - rBase, rBase);
+
+    // Left edge
+    ctx.lineTo(leftEdge, topEdge + rBase);
+
+    // Top-left corner (standard)
+    ctx.arcTo(leftEdge, topEdge, leftEdge + rBase, topEdge, rBase);
+
+    ctx.closePath();
+  }
+
+  // Compute fillet where cut circle meets the TOP edge of the container
+  function computeTopFillet(rect, cx, cy, rCut, rF) {
+    var topEdge = rect.y;
+
+    // Fillet centre is rF below the top edge
+    var fcy = topEdge + rF;
+
+    // Distance from fillet centre to cut centre must equal rCut + rF
+    var distNeeded = rCut + rF;
+    var dy = fcy - cy;
+    var dxSq = distNeeded * distNeeded - dy * dy;
+    if (dxSq < 0) return null; // No valid fillet
+
+    // Take the leftward solution (fillet is to the left of the circle)
+    var fcx = cx - Math.sqrt(dxSq);
+
+    // Tangent point on the top edge: directly above fillet centre
+    var edgeTangent = { x: fcx, y: topEdge };
+
+    // Tangent point on the cut circle: along vector from cut centre to fillet centre
+    var vx = fcx - cx;
+    var vy = fcy - cy;
+    var vLen = Math.sqrt(vx * vx + vy * vy);
+    var circleTangent = {
+      x: cx + vx * rCut / vLen,
+      y: cy + vy * rCut / vLen
+    };
+
+    // Arc angles for the fillet (CW from edge tangent to circle tangent)
+    var startAngle = Math.atan2(edgeTangent.y - fcy, edgeTangent.x - fcx); // = -PI/2
+    var endAngle = Math.atan2(circleTangent.y - fcy, circleTangent.x - fcx);
+
+    return {
+      centre: { x: fcx, y: fcy },
+      edgeTangent: edgeTangent,
+      circleTangent: circleTangent,
+      startAngle: startAngle,
+      endAngle: endAngle
+    };
+  }
+
+  // Compute fillet where cut circle meets the RIGHT edge of the container
+  function computeRightFillet(rect, cx, cy, rCut, rF) {
+    var rightEdge = rect.x + rect.w;
+
+    // Fillet centre is rF to the left of the right edge
+    var fcx = rightEdge - rF;
+
+    // Distance from fillet centre to cut centre must equal rCut + rF
+    var distNeeded = rCut + rF;
+    var dx = fcx - cx;
+    var dySq = distNeeded * distNeeded - dx * dx;
+    if (dySq < 0) return null; // No valid fillet
+
+    // Take the downward solution (fillet is below the circle)
+    var fcy = cy + Math.sqrt(dySq);
+
+    // Tangent point on the right edge: directly right of fillet centre
+    var edgeTangent = { x: rightEdge, y: fcy };
+
+    // Tangent point on the cut circle: along vector from cut centre to fillet centre
+    var vx = fcx - cx;
+    var vy = fcy - cy;
+    var vLen = Math.sqrt(vx * vx + vy * vy);
+    var circleTangent = {
+      x: cx + vx * rCut / vLen,
+      y: cy + vy * rCut / vLen
+    };
+
+    // Arc angles for the fillet (CW from circle tangent to edge tangent)
+    var startAngle = Math.atan2(circleTangent.y - fcy, circleTangent.x - fcx);
+    var endAngle = Math.atan2(edgeTangent.y - fcy, edgeTangent.x - fcx); // = 0
+
+    return {
+      centre: { x: fcx, y: fcy },
+      edgeTangent: edgeTangent,
+      circleTangent: circleTangent,
+      startAngle: startAngle,
+      endAngle: endAngle
+    };
+  }
+
+  // ─── SDF FUNCTIONS ───
+  // Signed Distance Fields for shape deformation (Inigo Quilez)
+
+  function sdfRoundedRect(px, py, rect) {
+    var cx = rect.x + rect.w / 2;
+    var cy = rect.y + rect.h / 2;
+    var halfW = rect.w / 2;
+    var halfH = rect.h / 2;
+    var r = rect.cornerRadius || 0;
+
+    var dx = Math.abs(px - cx) - halfW + r;
+    var dy = Math.abs(py - cy) - halfH + r;
+
+    var outsideDist = Math.sqrt(
+      Math.max(dx, 0) * Math.max(dx, 0) +
+      Math.max(dy, 0) * Math.max(dy, 0)
+    );
+    var insideDist = Math.min(Math.max(dx, dy), 0);
+
+    return outsideDist + insideDist - r;
+  }
+
+  function sdfCircle(px, py, circle) {
+    var dx = px - circle.cx;
+    var dy = py - circle.cy;
+    return Math.sqrt(dx * dx + dy * dy) - circle.r;
+  }
+
+  // ─── DEFORMED SHAPE ───
+  // SDF-based mutual deformation using smooth subtraction (Quilez).
+  // Samples the shape boundary, computes displacement from nearby shapes,
+  // and pushes points inward along surface normals.
+
+  function drawDeformedCircle(ctx, cx, cy, r, container, rOrganic, notchOffset) {
+    var SAMPLES = 64;
+    var collisionGap = rOrganic; // fillet radius acts as the smooth-sub k parameter
+    var containerRect = {
+      x: container.x, y: container.y,
+      w: container.w, h: container.h,
+      cornerRadius: notchOffset > 0 ? notchOffset : 0
+    };
+
+    var points = [];
+    for (var i = 0; i < SAMPLES; i++) {
+      var angle = (i / SAMPLES) * Math.PI * 2;
+      var px = cx + Math.cos(angle) * r;
+      var py = cy + Math.sin(angle) * r;
+
+      // SDF distance from this boundary point to the container
+      var d = sdfRoundedRect(px, py, containerRect);
+
+      // Smooth subtraction displacement (Quilez formula)
+      var totalInset = 0;
+      if (d < collisionGap && d > -collisionGap) {
+        var h = Math.max(0, Math.min(1, 0.5 - 0.5 * d / collisionGap));
+        totalInset = collisionGap * h * (1 - h);
+      }
+
+      if (totalInset > 0) {
+        px = cx + Math.cos(angle) * (r - totalInset);
+        py = cy + Math.sin(angle) * (r - totalInset);
+      }
+
+      points.push({ x: px, y: py });
+    }
+
+    // Render with quadratic bezier segments for smoothness
+    ctx.moveTo(points[0].x, points[0].y);
+    for (var j = 0; j < SAMPLES; j++) {
+      var curr = points[j];
+      var next = points[(j + 1) % SAMPLES];
+      var midX = (curr.x + next.x) / 2;
+      var midY = (curr.y + next.y) / 2;
+      ctx.quadraticCurveTo(curr.x, curr.y, midX, midY);
+    }
+    ctx.closePath();
+  }
+
   return {
     init: init,
     resize: resize,
     render: render,
+    renderOrganic: renderOrganic,
     getScale: getScale,
     getOffsetX: getOffsetX,
     getOffsetY: getOffsetY
