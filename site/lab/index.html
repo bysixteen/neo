@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Structure Lab — Alexa EDL</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a0f;
+      color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+    }
+
+    #canvas-wrap {
+      flex: 1;
+      position: relative;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+    }
+
+    /* ─── Sidebar ─── */
+
+    #sidebar {
+      width: 240px;
+      background: #0f1218;
+      border-left: 1px solid #1a1f2e;
+      padding: 14px;
+      overflow-y: auto;
+      flex-shrink: 0;
+      font-size: 13px;
+    }
+
+    .section-title {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1.8px;
+      color: #3a4560;
+      margin: 18px 0 8px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #1a1f2e;
+    }
+
+    .section-title:first-child { margin-top: 0; }
+
+    /* Mode toggle */
+    .mode-row {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      background: #151a24;
+      border: 1px solid #1e2536;
+      color: #7a8599;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+
+    .mode-btn:hover { background: #1e2536; border-color: #4a7aff; }
+    .mode-btn.active { background: #1a2440; border-color: #4a7aff; color: #6a9fff; }
+
+    /* Layout presets */
+    #layout-presets, #diagonal-presets {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .layout-btn {
+      background: #151a24;
+      border: 1px solid #1e2536;
+      color: #7a8599;
+      padding: 5px 10px;
+      border-radius: 3px;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: left;
+    }
+
+    .layout-btn:hover { background: #1e2536; border-color: #4a7aff; }
+    .layout-btn.active { background: #1a2440; border-color: #4a7aff; color: #6a9fff; }
+
+    /* Sliders */
+    .slider-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    .slider-row label {
+      font-size: 11px;
+      color: #5a6a80;
+      flex-shrink: 0;
+      width: 52px;
+    }
+
+    .slider-row input[type="range"] {
+      flex: 1;
+      margin: 0 6px;
+      accent-color: #4a7aff;
+      height: 2px;
+    }
+
+    .slider-row .value {
+      font-size: 10px;
+      color: #3a4a60;
+      width: 28px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Toggle buttons */
+    .toggle-btn {
+      background: #151a24;
+      border: 1px solid #1e2536;
+      color: #5a6a80;
+      padding: 5px 10px;
+      border-radius: 3px;
+      font-size: 10px;
+      cursor: pointer;
+      width: 100%;
+      text-align: center;
+      transition: all 0.15s;
+      margin-bottom: 4px;
+    }
+
+    .toggle-btn:hover { border-color: #4a7aff; }
+    .toggle-btn.active { background: #1a2440; border-color: #4a7aff; color: #6a9fff; }
+
+    /* Checkboxes */
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+    }
+
+    .check-row input[type="checkbox"] { accent-color: #4a7aff; }
+    .check-row label { font-size: 11px; color: #5a6a80; cursor: pointer; }
+
+    /* Motion section (collapsible) */
+    .section-toggle {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1.8px;
+      color: #3a4560;
+      margin: 18px 0 8px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #1a1f2e;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .section-toggle::after {
+      content: ' \25BE';
+      font-size: 10px;
+    }
+
+    .section-toggle.open::after {
+      content: ' \25B4';
+    }
+
+    .collapsible { max-height: 0; overflow: hidden; transition: max-height 0.2s; }
+    .collapsible:not(.collapsed) { max-height: 300px; }
+
+    .preset-btn {
+      background: #151a24;
+      border: 1px solid #1e2536;
+      color: #7a8599;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .preset-btn:hover { background: #1e2536; border-color: #4a7aff; }
+
+    #material-presets {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    /* Info */
+    #info-bar {
+      position: absolute;
+      bottom: 10px;
+      left: 12px;
+      font-size: 9px;
+      color: #1a2540;
+      pointer-events: none;
+      letter-spacing: 0.5px;
+    }
+
+    /* Diagonal section hidden by default */
+    #diagonal-section { display: none; }
+  </style>
+</head>
+<body>
+  <div id="canvas-wrap">
+    <canvas id="canvas"></canvas>
+    <div id="info-bar">Structure Lab &mdash; Organic Knockout &mdash; 1920 &times; 1080</div>
+  </div>
+
+  <div id="sidebar">
+
+    <div class="section-title" style="margin-top: 0;">Notch</div>
+    <div class="slider-row">
+      <label>Size</label>
+      <input type="range" id="notchSize">
+      <span class="value" id="notchSize-val">200</span>
+    </div>
+    <div class="slider-row">
+      <label>Offset</label>
+      <input type="range" id="notchOffset">
+      <span class="value" id="notchOffset-val">8</span>
+    </div>
+    <div class="slider-row">
+      <label>Smoothing</label>
+      <input type="range" id="rOrganic">
+      <span class="value" id="rOrganic-val">72</span>
+    </div>
+
+    <div class="section-title">Container</div>
+    <div class="slider-row">
+      <label>Radius</label>
+      <input type="range" id="rOuter">
+      <span class="value" id="rOuter-val">80</span>
+    </div>
+
+    <div class="section-title">Display</div>
+    <div class="check-row">
+      <input type="checkbox" id="showGrid" checked>
+      <label for="showGrid">Vector grid</label>
+    </div>
+    <div class="check-row">
+      <input type="checkbox" id="showGridBeyond">
+      <label for="showGridBeyond">Grid beyond frame</label>
+    </div>
+    <div class="check-row">
+      <input type="checkbox" id="showPoints">
+      <label for="showPoints">Attachment points</label>
+    </div>
+    <div class="check-row">
+      <input type="checkbox" id="showRadii" checked>
+      <label for="showRadii">Corner radii</label>
+    </div>
+    <div class="check-row">
+      <input type="checkbox" id="showGaps" checked>
+      <label for="showGaps">Gap dimensions</label>
+    </div>
+    <div class="check-row">
+      <input type="checkbox" id="showDims">
+      <label for="showDims">Panel dimensions</label>
+    </div>
+
+  </div>
+
+  <script>
+    window.onerror = function(msg, url, line) {
+      var d = document.createElement('div');
+      d.style.cssText = 'position:fixed;top:0;left:0;background:#ff3030;color:white;padding:10px 16px;z-index:9999;font:13px monospace';
+      d.textContent = msg + ' (' + url.split('/').pop() + ':' + line + ')';
+      document.body.appendChild(d);
+    };
+  </script>
+  <script src="spring.js"></script>
+  <script src="tokens.js"></script>
+  <script src="states.js"></script>
+  <script src="transitions.js"></script>
+  <script src="grid.js"></script>
+  <script src="layouts.js"></script>
+  <script src="diagonal.js"></script>
+  <script src="renderer.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
