@@ -18,18 +18,20 @@ export interface LayoutControls {
   connectedMargin: number; // connected gap
 }
 
-export type GridMode = 'off' | 'fine' | 'coarse';
+/** Grid layer sizes (px) and their opacities */
+export const GRID_FINE = 6;
+export const GRID_MID = 12;
+export const GRID_COARSE = 36;
 
-/** Base grid unit in px — everything snaps to this */
-export const BASE_GRID = 6;
-/** Coarse grid = 6x base */
-export const COARSE_GRID = 36;
+/** Snap grid — dividers snap to 12px */
+export const SNAP_GRID = 12;
 
 interface LayoutState {
   tree: FragmentNode;
   device: DeviceConfig;
   controls: LayoutControls;
-  grid: GridMode;
+  showFineGrid: boolean;
+  showCoarseGrid: boolean;
   snapEnabled: boolean;
 
   // Tree mutations
@@ -43,7 +45,8 @@ interface LayoutState {
   setControl: <K extends keyof LayoutControls>(key: K, value: number) => void;
 
   // Grid
-  cycleGrid: () => void;
+  toggleFineGrid: () => void;
+  toggleCoarseGrid: () => void;
   toggleSnap: () => void;
 
   // Device
@@ -59,8 +62,6 @@ function findBranchConnected(node: FragmentNode, branchId: string): boolean | un
   return undefined;
 }
 
-const GRID_CYCLE: GridMode[] = ['off', 'fine', 'coarse'];
-
 export const useLayoutStore = create<LayoutState>((set) => ({
   tree: createRoot(),
   device: defaultDevice,
@@ -71,7 +72,8 @@ export const useLayoutStore = create<LayoutState>((set) => ({
     margin: spacing.unconnected,              // 16
     connectedMargin: spacing.connected,       // 8
   },
-  grid: 'off' as GridMode,
+  showFineGrid: false,
+  showCoarseGrid: false,
   snapEnabled: true,
 
   split: (nodeId, axis) =>
@@ -94,11 +96,11 @@ export const useLayoutStore = create<LayoutState>((set) => ({
   setControl: (key, value) =>
     set((s) => ({ controls: { ...s.controls, [key]: value } })),
 
-  cycleGrid: () =>
-    set((s) => {
-      const idx = GRID_CYCLE.indexOf(s.grid);
-      return { grid: GRID_CYCLE[(idx + 1) % GRID_CYCLE.length] };
-    }),
+  toggleFineGrid: () =>
+    set((s) => ({ showFineGrid: !s.showFineGrid })),
+
+  toggleCoarseGrid: () =>
+    set((s) => ({ showCoarseGrid: !s.showCoarseGrid })),
 
   toggleSnap: () =>
     set((s) => ({ snapEnabled: !s.snapEnabled })),

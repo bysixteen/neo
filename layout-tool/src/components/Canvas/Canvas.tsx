@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react';
-import { useLayoutStore, BASE_GRID, COARSE_GRID } from '../../hooks/useLayoutStore';
+import { useLayoutStore, GRID_FINE, GRID_MID, GRID_COARSE, SNAP_GRID } from '../../hooks/useLayoutStore';
 import { computeLayout, type Rect } from '../../utils/fragmentTree';
 import { FragmentPanel } from '../FragmentPanel/FragmentPanel';
 import { SplitDivider } from '../SplitDivider/SplitDivider';
@@ -7,19 +7,16 @@ import { GridOverlay } from '../GridOverlay/GridOverlay';
 import styles from './Canvas.module.css';
 
 export function Canvas() {
-  const { tree, device, controls, grid, snapEnabled, split, merge, updateSplitRatio, toggleConnected } = useLayoutStore();
+  const { tree, device, controls, showFineGrid, showCoarseGrid, snapEnabled, split, merge, updateSplitRatio, toggleConnected } = useLayoutStore();
 
-  // 1:1 pixel — no scaling
   const deviceW = device.canvas.width;
   const deviceH = device.canvas.height;
 
   const { chrome, contentMargins } = device;
-  // Header zone: marginTop + header + marginBottom
   const headerZoneH = chrome.headerMarginTop + chrome.headerHeight + chrome.headerMarginBottom;
 
-  // Content area: inset by margins
   const contentX = contentMargins.left;
-  const contentY = 0; // relative to content surface
+  const contentY = 0;
   const contentW = deviceW - contentMargins.left - contentMargins.right;
   const contentSurfaceH = deviceH - headerZoneH;
   const contentH = contentSurfaceH - contentMargins.bottom;
@@ -42,22 +39,25 @@ export function Canvas() {
     merge(nodeId);
   }, [merge]);
 
-  const snapGridSize = snapEnabled ? BASE_GRID : 0;
+  const snapGridSize = snapEnabled ? SNAP_GRID : 0;
 
   return (
     <div
       className={styles.deviceFrame}
       style={{ width: deviceW, height: deviceH }}
     >
-      {/* Grid overlays — cover full device frame */}
-      {grid === 'fine' && (
-        <GridOverlay width={deviceW} height={deviceH} gridSize={BASE_GRID} />
+      {/* Grid overlays — layered, each at its own opacity */}
+      {showFineGrid && (
+        <>
+          <GridOverlay width={deviceW} height={deviceH} gridSize={GRID_FINE} opacity={0.04} />
+          <GridOverlay width={deviceW} height={deviceH} gridSize={GRID_MID} opacity={0.08} />
+        </>
       )}
-      {grid === 'coarse' && (
-        <GridOverlay width={deviceW} height={deviceH} gridSize={COARSE_GRID} />
+      {showCoarseGrid && (
+        <GridOverlay width={deviceW} height={deviceH} gridSize={GRID_COARSE} opacity={0.12} />
       )}
 
-      {/* Header zone: margin-top + header + margin-bottom */}
+      {/* Header zone */}
       <div className={styles.headerZone} style={{ height: headerZoneH }}>
         <div className={styles.headerMargin} style={{ height: chrome.headerMarginTop }} />
         <div className={styles.chromeHeader} style={{ height: chrome.headerHeight }}>
@@ -66,12 +66,11 @@ export function Canvas() {
         <div className={styles.headerMargin} style={{ height: chrome.headerMarginBottom }} />
       </div>
 
-      {/* Content surface — fragments sit within margins */}
+      {/* Content surface */}
       <div
         className={styles.contentSurface}
         style={{ height: contentSurfaceH }}
       >
-        {/* Leaf panels */}
         {layout.leaves.map((leaf) => (
           <FragmentPanel
             key={leaf.node.id}
@@ -83,7 +82,6 @@ export function Canvas() {
           />
         ))}
 
-        {/* Split dividers */}
         {layout.branches.map((branch) => (
           <SplitDivider
             key={`div-${branch.node.id}`}

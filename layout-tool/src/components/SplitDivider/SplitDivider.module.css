@@ -28,12 +28,9 @@
   background: var(--accent);
 }
 
-.connected {
-  background: transparent;
-}
-
+.connected,
 .disconnected {
-  background: rgba(255, 255, 255, 0.03);
+  background: transparent;
 }
 
 /* Connectivity toggle — sits outside the drag zone */
