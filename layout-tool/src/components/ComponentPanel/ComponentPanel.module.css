@@ -105,6 +105,14 @@
   color: rgb(255, 120, 120);
 }
 
+.contextMenuRight {
+  margin-left: auto;
+  padding-left: 16px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  text-transform: capitalize;
+}
+
 .contextMenuSeparator {
   height: 1px;
   margin: 4px 8px;

@@ -1,7 +1,14 @@
 import { useMemo, useRef, useEffect } from 'react';
 import gsap from 'gsap';
 import * as ContextMenu from '@radix-ui/react-context-menu';
-import { computeLayout, type FragmentNode, type Rect, type LeafLayout } from '../../utils/fragmentTree';
+import {
+  computeLayout,
+  COMPONENT_SIZES,
+  type FragmentNode,
+  type Rect,
+  type LeafLayout,
+  type ComponentSize,
+} from '../../utils/fragmentTree';
 import type { LayoutControls } from '../../hooks/useLayoutStore';
 import { SNAP_GRID } from '../../hooks/useLayoutStore';
 import { ContentDivider } from '../ContentDivider/ContentDivider';
@@ -17,6 +24,7 @@ interface Props {
   onMergeContent: (innerNodeId: string) => void;
   onUpdateContentRatio: (innerBranchId: string, ratio: number) => void;
   onToggleContentConnected: (innerBranchId: string) => void;
+  onSetSize: (innerNodeId: string, size: ComponentSize) => void;
 }
 
 /**
@@ -45,6 +53,26 @@ function computeContentRadii(
   };
 }
 
+/** Get the resolved fixed height for a content tree (max of all button sizes within) */
+function getContentHeight(node: FragmentNode): number {
+  if (node.type === 'leaf') {
+    if (node.componentType === 'button') {
+      return COMPONENT_SIZES[node.componentSize ?? 'medium'];
+    }
+    return 0; // placeholder fills whatever space it gets
+  }
+  // For branches, both children share the same band height
+  const a = getContentHeight(node.children![0]);
+  const b = getContentHeight(node.children![1]);
+  return Math.max(a, b);
+}
+
+/** Check if any node in the tree is a button */
+function hasButton(node: FragmentNode): boolean {
+  if (node.type === 'leaf') return node.componentType === 'button';
+  return hasButton(node.children![0]) || hasButton(node.children![1]);
+}
+
 function ComponentLeaf({
   leaf,
   contentRect,
@@ -55,6 +83,8 @@ function ComponentLeaf({
   onSplitH,
   onSplitV,
   onMerge,
+  onSetSize,
+  currentSize,
 }: {
   leaf: LeafLayout;
   contentRect: Rect;
@@ -65,6 +95,8 @@ function ComponentLeaf({
   onSplitH: () => void;
   onSplitV: () => void;
   onMerge: () => void;
+  onSetSize: (size: ComponentSize) => void;
+  currentSize?: ComponentSize;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const { rect, node } = leaf;
@@ -110,18 +142,43 @@ function ComponentLeaf({
 
       <ContextMenu.Portal>
         <ContextMenu.Content className={styles.contextMenu}>
-          <ContextMenu.Item
-            className={styles.contextMenuItem}
-            onSelect={onSplitH}
-          >
+          <ContextMenu.Item className={styles.contextMenuItem} onSelect={onSplitH}>
             Split Horizontal
           </ContextMenu.Item>
-          <ContextMenu.Item
-            className={styles.contextMenuItem}
-            onSelect={onSplitV}
-          >
+          <ContextMenu.Item className={styles.contextMenuItem} onSelect={onSplitV}>
             Split Vertical
           </ContextMenu.Item>
+
+          {isButton && (
+            <>
+              <ContextMenu.Separator className={styles.contextMenuSeparator} />
+              <ContextMenu.Sub>
+                <ContextMenu.SubTrigger className={styles.contextMenuItem}>
+                  Size
+                  <span className={styles.contextMenuRight}>
+                    {currentSize ?? 'medium'}
+                  </span>
+                </ContextMenu.SubTrigger>
+                <ContextMenu.Portal>
+                  <ContextMenu.SubContent className={styles.contextMenu}>
+                    {(['small', 'medium', 'large'] as ComponentSize[]).map((size) => (
+                      <ContextMenu.Item
+                        key={size}
+                        className={styles.contextMenuItem}
+                        onSelect={() => onSetSize(size)}
+                      >
+                        <span style={{ textTransform: 'capitalize' }}>{size}</span>
+                        <span className={styles.contextMenuRight}>
+                          {COMPONENT_SIZES[size]}px
+                        </span>
+                      </ContextMenu.Item>
+                    ))}
+                  </ContextMenu.SubContent>
+                </ContextMenu.Portal>
+              </ContextMenu.Sub>
+            </>
+          )}
+
           <ContextMenu.Separator className={styles.contextMenuSeparator} />
           <ContextMenu.Item
             className={`${styles.contextMenuItem} ${styles.contextMenuItemDanger}`}
@@ -145,14 +202,24 @@ export function ComponentPanel({
   onMergeContent,
   onUpdateContentRatio,
   onToggleContentConnected,
+  onSetSize,
 }: Props) {
   const { contentPadding, componentGap, componentConnectedGap } = controls;
 
+  const fullContentW = parentRect.w - contentPadding * 2;
+  const fullContentH = parentRect.h - contentPadding * 2;
+
+  // Buttons use fixed height at the bottom of the panel
+  const isButtonContent = hasButton(contentRoot);
+  const fixedH = isButtonContent ? getContentHeight(contentRoot) : fullContentH;
+  const clampedH = Math.min(fixedH, fullContentH);
+
+  // Content rect for layout computation (buttons get a fixed-height band)
   const contentRect: Rect = {
     x: 0,
     y: 0,
-    w: parentRect.w - contentPadding * 2,
-    h: parentRect.h - contentPadding * 2,
+    w: fullContentW,
+    h: clampedH,
   };
 
   const layout = useMemo(
@@ -160,8 +227,11 @@ export function ComponentPanel({
     [contentRoot, contentRect.w, contentRect.h, componentConnectedGap, componentGap],
   );
 
+  // Buttons anchor to the bottom of the content area
   const offsetX = parentRect.x + contentPadding;
-  const offsetY = parentRect.y + contentPadding;
+  const offsetY = isButtonContent
+    ? parentRect.y + contentPadding + (fullContentH - clampedH)
+    : parentRect.y + contentPadding;
   const snapGridSize = snapEnabled ? SNAP_GRID : 0;
 
   return (
@@ -178,6 +248,8 @@ export function ComponentPanel({
           onSplitH={() => onSplitContent(leaf.node.id, 'horizontal')}
           onSplitV={() => onSplitContent(leaf.node.id, 'vertical')}
           onMerge={() => onMergeContent(leaf.node.id)}
+          onSetSize={(size) => onSetSize(leaf.node.id, size)}
+          currentSize={leaf.node.componentSize}
         />
       ))}
 

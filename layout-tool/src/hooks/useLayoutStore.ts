@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import {
   type FragmentNode,
   type ComponentType,
+  type ComponentSize,
   createRoot,
   splitNode,
   mergeNode,
@@ -13,6 +14,7 @@ import {
   setContentSplitRatio,
   setContentConnected,
   removeContent,
+  setComponentSize,
 } from '../utils/fragmentTree';
 import { devices, defaultDevice, type DeviceConfig } from '../data/devices';
 import { semanticRadii, spacing } from '../data/tokens';
@@ -57,6 +59,7 @@ interface LayoutState {
   mergeContent: (leafId: string, innerNodeId: string) => void;
   updateContentSplitRatio: (leafId: string, innerBranchId: string, ratio: number) => void;
   toggleContentConnected: (leafId: string, innerBranchId: string) => void;
+  setContentSize: (leafId: string, innerNodeId: string, size: ComponentSize) => void;
   removeContent: (leafId: string) => void;
 
   // Controls
@@ -140,6 +143,9 @@ export const useLayoutStore = create<LayoutState>((set) => ({
       const current = findBranchConnected(leaf.content, innerBranchId) ?? true;
       return { tree: setContentConnected(s.tree, leafId, innerBranchId, !current) };
     }),
+
+  setContentSize: (leafId, innerNodeId, size) =>
+    set((s) => ({ tree: setComponentSize(s.tree, leafId, innerNodeId, size) })),
 
   removeContent: (leafId) =>
     set((s) => ({ tree: removeContent(s.tree, leafId) })),

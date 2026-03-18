@@ -13,7 +13,7 @@ export function Canvas() {
     showFineGrid, showCoarseGrid, snapEnabled,
     split, merge, updateSplitRatio, toggleConnected,
     addContent, splitContent, mergeContent,
-    updateContentSplitRatio, toggleContentConnected, removeContent,
+    updateContentSplitRatio, toggleContentConnected, setContentSize, removeContent,
   } = useLayoutStore();
 
   const deviceW = device.canvas.width;
@@ -112,6 +112,7 @@ export function Canvas() {
                 onMergeContent={(innerNodeId) => mergeContent(leaf.node.id, innerNodeId)}
                 onUpdateContentRatio={(branchId, ratio) => updateContentSplitRatio(leaf.node.id, branchId, ratio)}
                 onToggleContentConnected={(branchId) => toggleContentConnected(leaf.node.id, branchId)}
+                onSetSize={(innerNodeId, size) => setContentSize(leaf.node.id, innerNodeId, size)}
               />
             );
           })}

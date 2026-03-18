@@ -12,6 +12,13 @@ export function genId(): string {
 }
 
 export type ComponentType = 'button' | 'placeholder';
+export type ComponentSize = 'small' | 'medium' | 'large';
+
+export const COMPONENT_SIZES: Record<ComponentSize, number> = {
+  small: 80,
+  medium: 120,
+  large: 160,
+};
 
 export interface FragmentNode {
   id: string;
@@ -29,6 +36,7 @@ export interface FragmentNode {
   // Content — leaf-only: nested fragment tree of components
   content?: FragmentNode;
   componentType?: ComponentType; // set when this node IS a component
+  componentSize?: ComponentSize; // fixed height for buttons
 }
 
 // ----- Labels -----
@@ -77,8 +85,8 @@ export function splitNode(
         splitRatio: 0.5,
         connected: true,
         children: [
-          { id: genId(), type: 'leaf', componentType: node.componentType },
-          { id: genId(), type: 'leaf', componentType: node.componentType },
+          { id: genId(), type: 'leaf', componentType: node.componentType, componentSize: node.componentSize },
+          { id: genId(), type: 'leaf', componentType: node.componentType, componentSize: node.componentSize },
         ],
       };
     }
@@ -284,7 +292,7 @@ function mapLeafContent(
 }
 
 /** Add a component to a leaf panel.
- *  Buttons are placed at the bottom (split V: placeholder top, button bottom).
+ *  Buttons use a fixed pixel height (small/medium/large) at the bottom.
  *  Placeholders fill the whole content area.
  */
 export function addContent(
@@ -294,20 +302,31 @@ export function addContent(
 ): FragmentNode {
   return mapLeafContent(root, leafId, () => {
     if (componentType === 'button') {
-      // Button at bottom: vertical split with placeholder above
-      return {
-        id: genId(),
-        type: 'branch',
-        splitAxis: 'vertical',
-        splitRatio: 0.7,
-        connected: true,
-        children: [
-          { id: genId(), type: 'leaf', componentType: 'placeholder' },
-          { id: genId(), type: 'leaf', componentType: 'button' },
-        ],
-      };
+      return { id: genId(), type: 'leaf', componentType: 'button', componentSize: 'medium' };
     }
     return createComponent(componentType);
+  });
+}
+
+/** Set the size of a component node within a content tree */
+export function setComponentSize(
+  root: FragmentNode,
+  leafId: string,
+  innerNodeId: string,
+  size: ComponentSize,
+): FragmentNode {
+  return mapLeafContent(root, leafId, (content) => {
+    if (!content) return content;
+    function walk(node: FragmentNode): FragmentNode {
+      if (node.id === innerNodeId) {
+        return { ...node, componentSize: size };
+      }
+      if (node.type === 'branch') {
+        return { ...node, children: [walk(node.children![0]), walk(node.children![1])] };
+      }
+      return node;
+    }
+    return walk(content);
   });
 }
 
