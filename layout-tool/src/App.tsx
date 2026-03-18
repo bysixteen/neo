@@ -1,3 +1,4 @@
+import { GridFour, GridNine, MagnetStraight, ArrowCounterClockwise } from '@phosphor-icons/react';
 import { useLayoutStore } from './hooks/useLayoutStore';
 import { Canvas } from './components/Canvas/Canvas';
 import { ControlsPanel } from './components/ControlsPanel/ControlsPanel';
@@ -41,7 +42,7 @@ function App() {
             onClick={toggleFineGrid}
             title={showFineGrid ? '6/12px Grid On' : '6/12px Grid Off'}
           >
-            <span className="material-symbols-outlined toolbarIcon">grid_on</span>
+            <GridNine size={16} weight={showFineGrid ? 'fill' : 'regular'} />
             <span className="toolbarLabel">6px</span>
           </button>
 
@@ -50,7 +51,7 @@ function App() {
             onClick={toggleCoarseGrid}
             title={showCoarseGrid ? '36px Grid On' : '36px Grid Off'}
           >
-            <span className="material-symbols-outlined toolbarIcon">grid_4x4</span>
+            <GridFour size={16} weight={showCoarseGrid ? 'fill' : 'regular'} />
             <span className="toolbarLabel">36px</span>
           </button>
 
@@ -59,12 +60,12 @@ function App() {
             onClick={toggleSnap}
             title={snapEnabled ? 'Snap On (12px)' : 'Snap Off'}
           >
-            <span className="material-symbols-outlined toolbarIcon">magnet</span>
+            <MagnetStraight size={16} weight={snapEnabled ? 'fill' : 'regular'} />
             <span className="toolbarLabel">Snap</span>
           </button>
 
           <button className="toolbarBtn" onClick={resetTree} title="Reset">
-            <span className="material-symbols-outlined toolbarIcon">restart_alt</span>
+            <ArrowCounterClockwise size={16} />
             <span className="toolbarLabel">Reset</span>
           </button>
         </div>

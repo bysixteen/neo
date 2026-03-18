@@ -97,10 +97,6 @@
   color: var(--accent);
 }
 
-.toolbarIcon {
-  font-size: 16px;
-}
-
 .toolbarLabel {
   white-space: nowrap;
 }
