@@ -31,11 +31,11 @@ export function SplitDivider({
 
   const drag = useRef<DragState | null>(null);
 
-  // Position the divider at the split point
   const isHorizontal = axis === 'horizontal';
   const totalSize = isHorizontal ? rect.w : rect.h;
   const firstSize = (totalSize - gap) * ratio;
 
+  // Divider (drag zone) — the gap area between panels
   const dividerStyle: React.CSSProperties = isHorizontal
     ? {
         position: 'absolute',
@@ -52,6 +52,23 @@ export function SplitDivider({
         width: rect.w,
         height: gap,
         cursor: 'row-resize',
+      };
+
+  // Toggle button — positioned OUTSIDE the drag zone
+  // Horizontal split: to the left of the divider
+  // Vertical split: above the divider
+  const toggleStyle: React.CSSProperties = isHorizontal
+    ? {
+        position: 'absolute',
+        left: rect.x + firstSize - 24,
+        top: rect.y + rect.h / 2 - 10,
+        zIndex: 4,
+      }
+    : {
+        position: 'absolute',
+        left: rect.x + rect.w / 2 - 10,
+        top: rect.y + firstSize - 24,
+        zIndex: 4,
       };
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -79,23 +96,29 @@ export function SplitDivider({
   }
 
   return (
-    <div
-      className={`${styles.divider} ${connected ? styles.connected : styles.disconnected}`}
-      style={dividerStyle}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-    >
+    <>
+      {/* Drag handle */}
+      <div
+        className={`${styles.divider} ${isHorizontal ? styles.horizontal : styles.vertical} ${connected ? styles.connected : styles.disconnected}`}
+        style={dividerStyle}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+      />
+
+      {/* Toggle button — separate element, outside drag zone */}
       <button
-        className={styles.toggle}
+        className={`${styles.toggle} ${isHorizontal ? styles.toggleH : styles.toggleV}`}
+        style={toggleStyle}
         onClick={(e) => {
           e.stopPropagation();
+          e.preventDefault();
           onToggleConnected();
         }}
         title={connected ? 'Disconnect' : 'Connect'}
       >
         <span className={styles.toggleIcon}>{connected ? '\u2212' : '+'}</span>
       </button>
-    </div>
+    </>
   );
 }
