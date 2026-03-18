@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import * as ContextMenu from '@radix-ui/react-context-menu';
 import {
   computeLayout,
+  applyFixedHeights,
   COMPONENT_SIZES,
   type FragmentNode,
   type Rect,
@@ -53,25 +54,6 @@ function computeContentRadii(
   };
 }
 
-/** Get the resolved fixed height for a content tree (max of all button sizes within) */
-function getContentHeight(node: FragmentNode): number {
-  if (node.type === 'leaf') {
-    if (node.componentType === 'button') {
-      return COMPONENT_SIZES[node.componentSize ?? 'medium'];
-    }
-    return 0; // placeholder fills whatever space it gets
-  }
-  // For branches, both children share the same band height
-  const a = getContentHeight(node.children![0]);
-  const b = getContentHeight(node.children![1]);
-  return Math.max(a, b);
-}
-
-/** Check if any node in the tree is a button */
-function hasButton(node: FragmentNode): boolean {
-  if (node.type === 'leaf') return node.componentType === 'button';
-  return hasButton(node.children![0]) || hasButton(node.children![1]);
-}
 
 function ComponentLeaf({
   leaf,
@@ -209,29 +191,21 @@ export function ComponentPanel({
   const fullContentW = parentRect.w - contentPadding * 2;
   const fullContentH = parentRect.h - contentPadding * 2;
 
-  // Buttons use fixed height at the bottom of the panel
-  const isButtonContent = hasButton(contentRoot);
-  const fixedH = isButtonContent ? getContentHeight(contentRoot) : fullContentH;
-  const clampedH = Math.min(fixedH, fullContentH);
+  const contentRect: Rect = { x: 0, y: 0, w: fullContentW, h: fullContentH };
 
-  // Content rect for layout computation (buttons get a fixed-height band)
-  const contentRect: Rect = {
-    x: 0,
-    y: 0,
-    w: fullContentW,
-    h: clampedH,
-  };
-
-  const layout = useMemo(
-    () => computeLayout(contentRoot, contentRect, componentConnectedGap, componentGap),
-    [contentRoot, contentRect.w, contentRect.h, componentConnectedGap, componentGap],
+  // Apply fixed button heights before layout computation
+  const resolvedContent = useMemo(
+    () => applyFixedHeights(contentRoot, fullContentH, componentConnectedGap),
+    [contentRoot, fullContentH, componentConnectedGap],
   );
 
-  // Buttons anchor to the bottom of the content area
+  const layout = useMemo(
+    () => computeLayout(resolvedContent, contentRect, componentConnectedGap, componentGap),
+    [resolvedContent, contentRect.w, contentRect.h, componentConnectedGap, componentGap],
+  );
+
   const offsetX = parentRect.x + contentPadding;
-  const offsetY = isButtonContent
-    ? parentRect.y + contentPadding + (fullContentH - clampedH)
-    : parentRect.y + contentPadding;
+  const offsetY = parentRect.y + contentPadding;
   const snapGridSize = snapEnabled ? SNAP_GRID : 0;
 
   return (

@@ -292,7 +292,7 @@ function mapLeafContent(
 }
 
 /** Add a component to a leaf panel.
- *  Buttons use a fixed pixel height (small/medium/large) at the bottom.
+ *  Buttons are placed at the bottom with a placeholder above.
  *  Placeholders fill the whole content area.
  */
 export function addContent(
@@ -302,10 +302,71 @@ export function addContent(
 ): FragmentNode {
   return mapLeafContent(root, leafId, () => {
     if (componentType === 'button') {
-      return { id: genId(), type: 'leaf', componentType: 'button', componentSize: 'medium' };
+      return {
+        id: genId(),
+        type: 'branch',
+        splitAxis: 'vertical',
+        splitRatio: 0.5, // overridden at render time by fixed button height
+        connected: true,
+        children: [
+          { id: genId(), type: 'leaf', componentType: 'placeholder' },
+          { id: genId(), type: 'leaf', componentType: 'button', componentSize: 'medium' },
+        ],
+      };
     }
     return createComponent(componentType);
   });
+}
+
+/**
+ * Walk a content tree and override splitRatio on vertical branches
+ * where a child has a fixed componentSize, so the button gets its
+ * exact pixel height and the placeholder takes the rest.
+ */
+export function applyFixedHeights(node: FragmentNode, availableH: number, gap: number): FragmentNode {
+  if (node.type === 'leaf') return node;
+
+  const [childA, childB] = node.children!;
+  const axis = node.splitAxis!;
+  const connected = node.connected ?? true;
+  const g = connected ? gap : gap; // both use same gap for content
+
+  if (axis === 'vertical') {
+    // Check if either child has a fixed size
+    const sizeA = childA.componentSize ? COMPONENT_SIZES[childA.componentSize] : 0;
+    const sizeB = childB.componentSize ? COMPONENT_SIZES[childB.componentSize] : 0;
+    const usable = availableH - g;
+
+    let ratio = node.splitRatio ?? 0.5;
+    if (sizeB > 0 && sizeA === 0) {
+      // Bottom child is fixed height — placeholder takes the rest
+      ratio = Math.max(0.1, (usable - sizeB) / usable);
+    } else if (sizeA > 0 && sizeB === 0) {
+      // Top child is fixed height
+      ratio = Math.min(0.9, sizeA / usable);
+    }
+
+    const aH = usable * ratio;
+    const bH = usable - aH;
+
+    return {
+      ...node,
+      splitRatio: ratio,
+      children: [
+        applyFixedHeights(childA, aH, g),
+        applyFixedHeights(childB, bH, g),
+      ],
+    };
+  }
+
+  // Horizontal split — both children share the same height
+  return {
+    ...node,
+    children: [
+      applyFixedHeights(childA, availableH, gap),
+      applyFixedHeights(childB, availableH, gap),
+    ],
+  };
 }
 
 /** Set the size of a component node within a content tree */
