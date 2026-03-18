@@ -1,7 +1,6 @@
 import { useLayoutStore } from '../../hooks/useLayoutStore';
 import { getSlotConnectedEdges } from '../../utils/gridToSlots';
 import { calculateRadii, getPositionMode } from '../../utils/calculateRadii';
-import { calculateGap, gapTokenName } from '../../utils/calculatePadding';
 import { semanticRadii } from '../../data/tokens';
 import styles from './SpecPanel.module.css';
 
@@ -12,31 +11,28 @@ function radiiTokenName(value: number): string {
 }
 
 export function SpecPanel() {
-  const { slots, cols, rows, edges, device } = useLayoutStore();
+  const { slots, edges, colWidths, rowHeights, device } = useLayoutStore();
 
-  const anyConnected = edges.some((e) => e.connected);
   const connectedCount = edges.filter((e) => e.connected).length;
-  const gap = calculateGap(anyConnected);
 
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
         <h3>Spec</h3>
         <span className={styles.meta}>
-          {cols}×{rows} on {device.codename} ({device.canvas.width}×{device.canvas.height})
+          {device.codename} — {device.canvas.width}×{device.canvas.height}
         </span>
       </div>
 
       <div className={styles.groupSpec}>
         <div className={styles.row}>
-          <span className={styles.prop}>Group gap</span>
-          <span className={styles.values}>{gap}px</span>
-          <span className={styles.tokens}>{gapTokenName(anyConnected)}</span>
+          <span className={styles.prop}>Connected edges</span>
+          <span className={styles.values}>{connectedCount}/{edges.length}</span>
         </div>
         <div className={styles.row}>
-          <span className={styles.prop}>Connected edges</span>
+          <span className={styles.prop}>Chrome</span>
           <span className={styles.values}>
-            {connectedCount}/{edges.length}
+            {device.chrome.headerHeight}px header · {device.chrome.utilityBarHeight}px utility
           </span>
         </div>
       </div>
@@ -46,6 +42,8 @@ export function SpecPanel() {
           const connectedEdges = getSlotConnectedEdges(slot.id, edges);
           const radii = calculateRadii(connectedEdges);
           const mode = getPositionMode(connectedEdges);
+          const w = colWidths[slot.col] ?? 0;
+          const h = rowHeights[slot.row] ?? 0;
 
           return (
             <div key={slot.id} className={styles.slotSpec}>
@@ -55,12 +53,17 @@ export function SpecPanel() {
               </div>
 
               <div className={styles.row}>
-                <span className={styles.prop}>Radii (TL/TR/BR/BL)</span>
+                <span className={styles.prop}>Size</span>
+                <span className={styles.values}>{w} × {h}px</span>
+              </div>
+
+              <div className={styles.row}>
+                <span className={styles.prop}>Radii TL/TR/BR/BL</span>
                 <span className={styles.values}>
                   {radii.tl}/{radii.tr}/{radii.br}/{radii.bl}
                 </span>
                 <span className={styles.tokens}>
-                  {radiiTokenName(radii.tl)}, {radiiTokenName(radii.tr)}, {radiiTokenName(radii.br)}, {radiiTokenName(radii.bl)}
+                  {radiiTokenName(radii.tl)} · {radiiTokenName(radii.br)}
                 </span>
               </div>
             </div>

@@ -12,7 +12,9 @@
   background: var(--device-bg);
   border-radius: 16px;
   border: 2px solid var(--border-default);
-  overflow: visible;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .deviceLabel {
@@ -24,16 +26,85 @@
   font-variant-numeric: tabular-nums;
 }
 
-.canvas {
+/* EDL Header */
+.chromeHeader {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Utility bar */
+.chromeUtility {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chromeLabel {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.25);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Content surface — fragment system lives here */
+.contentSurface {
   position: relative;
+  flex: 1;
+  /* 12px structural grid overlay */
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
 }
 
-.edgeOverlay {
+/* Column resize divider */
+.colDivider {
   position: absolute;
-  inset: 0;
-  pointer-events: none;
+  z-index: 2;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.edgeOverlay > * {
-  pointer-events: auto;
+.colDivider::after {
+  content: '';
+  width: 2px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 1px;
+  transition: background 0.15s;
+}
+
+.colDivider:hover::after {
+  background: var(--accent);
+}
+
+/* Row resize divider */
+.rowDivider {
+  position: absolute;
+  z-index: 2;
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rowDivider::after {
+  content: '';
+  height: 2px;
+  width: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 1px;
+  transition: background 0.15s;
+}
+
+.rowDivider:hover::after {
+  background: var(--accent);
 }

@@ -1,45 +1,43 @@
 .wrapper {
   display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.variant {
+  display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1.5px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.variant:hover {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
+.variant.active {
+  background: var(--accent-muted);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.icon {
+  width: 36px;
+  height: 24px;
+  flex-shrink: 0;
 }
 
 .label {
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 500;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(4, 28px);
-  grid-template-rows: repeat(4, 28px);
-  gap: 4px;
-}
-
-.cell {
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  border: 1.5px solid var(--border-default);
-  background: var(--bg-surface);
-  cursor: pointer;
-  transition: all 0.1s ease;
-  padding: 0;
-}
-
-.cell:hover {
-  border-color: var(--accent);
-}
-
-.cell.highlighted {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
-.cell.active {
-  background: var(--accent-muted);
-  border-color: var(--accent);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
 }

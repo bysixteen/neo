@@ -7,18 +7,23 @@ interface Props {
   slot: Slot;
   radii: CornerRadii;
   positionMode: string;
+  // Absolute position within the content surface (scaled px)
+  left: number;
+  top: number;
+  width: number;
+  height: number;
   selected?: boolean;
   onClick?: () => void;
 }
 
-export function FragmentSlot({ slot, radii, positionMode, selected, onClick }: Props) {
+export function FragmentSlot({ slot, radii, positionMode, left, top, width, height, selected, onClick }: Props) {
   return (
     <motion.div
       className={`${styles.slot} ${selected ? styles.selected : ''}`}
-      style={{
+      style={{ position: 'absolute', left, top, width, height }}
+      animate={{
         borderRadius: `${radii.tl}px ${radii.tr}px ${radii.br}px ${radii.bl}px`,
       }}
-      layout
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
       onClick={onClick}
     >
