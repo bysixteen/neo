@@ -19,7 +19,7 @@ export interface LayoutControls {
 }
 
 /** Grid layer sizes (px) and their opacities */
-export const GRID_FINE = 6;
+export const GRID_FINE = 4;
 export const GRID_MID = 12;
 export const GRID_COARSE = 36;
 
