@@ -52,6 +52,8 @@ export function FragmentPanel({
   const panelRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
 
+  const prevRect = useRef({ x: rect.x, y: rect.y, w: rect.w, h: rect.h });
+
   useEffect(() => {
     if (!panelRef.current) return;
     const props = {
@@ -62,14 +64,21 @@ export function FragmentPanel({
       borderRadius: `${radii.tl}px ${radii.tr}px ${radii.br}px ${radii.bl}px`,
     };
 
+    // Detect small vs large changes to decide animation duration
+    const dx = Math.abs(rect.x - prevRect.current.x) + Math.abs(rect.y - prevRect.current.y);
+    const dw = Math.abs(rect.w - prevRect.current.w) + Math.abs(rect.h - prevRect.current.h);
+    const isSmallChange = dx + dw < 50;
+    prevRect.current = { x: rect.x, y: rect.y, w: rect.w, h: rect.h };
+
     if (isFirstRender.current) {
       gsap.set(panelRef.current, props);
       isFirstRender.current = false;
     } else {
       gsap.to(panelRef.current, {
         ...props,
-        duration: 0.4,
-        ease: 'power3.out',
+        duration: isSmallChange ? 0.05 : 0.4,
+        ease: isSmallChange ? 'none' : 'power3.out',
+        overwrite: true,
       });
     }
     return () => {

@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import gsap from 'gsap';
 import type { BranchLayout } from '../../utils/fragmentTree';
 import styles from './SplitDivider.module.css';
 
@@ -38,6 +39,9 @@ export function SplitDivider({
   const gap = connected ? connectedGap : unconnectedGap;
 
   const drag = useRef<DragState | null>(null);
+  const dividerRef = useRef<HTMLDivElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const isFirstRender = useRef(true);
   const [isDragging, setIsDragging] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -46,37 +50,40 @@ export function SplitDivider({
   const usableSize = totalSize - gap;
   const firstSize = usableSize * ratio;
 
-  const dividerStyle: React.CSSProperties = isHorizontal
-    ? {
-        position: 'absolute',
-        left: rect.x + firstSize,
-        top: rect.y,
-        width: gap,
-        height: rect.h,
-        cursor: 'col-resize',
-      }
-    : {
-        position: 'absolute',
-        left: rect.x,
-        top: rect.y + firstSize,
-        width: rect.w,
-        height: gap,
-        cursor: 'row-resize',
-      };
+  // Animate divider and toggle positions (skip during drag for instant response)
+  useEffect(() => {
+    if (!dividerRef.current) return;
 
-  // Toggle positioned further from divider — offset by gap + 4px margin
-  const toggleOffset = gap + 4;
-  const toggleStyle: React.CSSProperties = isHorizontal
-    ? {
-        position: 'absolute',
-        left: rect.x + firstSize - toggleOffset - 20,
-        top: rect.y + rect.h / 2 - 10,
+    const dividerProps = isHorizontal
+      ? { left: rect.x + firstSize, top: rect.y, width: gap, height: rect.h }
+      : { left: rect.x, top: rect.y + firstSize, width: rect.w, height: gap };
+
+    const toggleOffset = gap + 4;
+    const toggleProps = isHorizontal
+      ? { left: rect.x + firstSize - toggleOffset - 20, top: rect.y + rect.h / 2 - 10 }
+      : { left: rect.x + rect.w / 2 - 10, top: rect.y + firstSize - toggleOffset - 20 };
+
+    if (isFirstRender.current) {
+      gsap.set(dividerRef.current, dividerProps);
+      if (toggleRef.current) gsap.set(toggleRef.current, toggleProps);
+      isFirstRender.current = false;
+    } else if (drag.current) {
+      // During drag: instant position update
+      gsap.set(dividerRef.current, dividerProps);
+      if (toggleRef.current) gsap.set(toggleRef.current, toggleProps);
+    } else {
+      // Not dragging: animate (e.g. after split/merge)
+      gsap.to(dividerRef.current, { ...dividerProps, duration: 0.4, ease: 'power3.out' });
+      if (toggleRef.current) {
+        gsap.to(toggleRef.current, { ...toggleProps, duration: 0.4, ease: 'power3.out' });
       }
-    : {
-        position: 'absolute',
-        left: rect.x + rect.w / 2 - 10,
-        top: rect.y + firstSize - toggleOffset - 20,
-      };
+    }
+
+    return () => {
+      if (dividerRef.current) gsap.killTweensOf(dividerRef.current);
+      if (toggleRef.current) gsap.killTweensOf(toggleRef.current);
+    };
+  }, [rect.x, rect.y, rect.w, rect.h, firstSize, gap, isHorizontal]);
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
     e.preventDefault();
@@ -123,8 +130,12 @@ export function SplitDivider({
   return (
     <>
       <div
+        ref={dividerRef}
         className={`${styles.divider} ${isHorizontal ? styles.horizontal : styles.vertical} ${connected ? styles.connected : styles.disconnected}`}
-        style={dividerStyle}
+        style={{
+          position: 'absolute',
+          cursor: isHorizontal ? 'col-resize' : 'row-resize',
+        }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -133,8 +144,9 @@ export function SplitDivider({
       />
 
       <button
+        ref={toggleRef}
         className={toggleClasses}
-        style={toggleStyle}
+        style={{ position: 'absolute' }}
         onClick={(e) => {
           e.stopPropagation();
           e.preventDefault();

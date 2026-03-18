@@ -84,22 +84,35 @@ function ComponentLeaf({
   const isFirstRender = useRef(true);
   const { rect, node } = leaf;
   const radii = computeContentRadii(rect, { x: 0, y: 0, w: contentRect.w, h: contentRect.h }, parentRadii, padding);
+  const prevRect = useRef({ x: offsetX + rect.x, y: offsetY + rect.y, w: rect.w, h: rect.h });
 
   useEffect(() => {
     if (!ref.current) return;
+    const cx = offsetX + rect.x;
+    const cy = offsetY + rect.y;
     const props = {
-      left: offsetX + rect.x,
-      top: offsetY + rect.y,
+      left: cx,
+      top: cy,
       width: rect.w,
       height: rect.h,
       borderRadius: `${radii.tl}px ${radii.tr}px ${radii.br}px ${radii.bl}px`,
     };
 
+    const dx = Math.abs(cx - prevRect.current.x) + Math.abs(cy - prevRect.current.y);
+    const dw = Math.abs(rect.w - prevRect.current.w) + Math.abs(rect.h - prevRect.current.h);
+    const isSmallChange = dx + dw < 50;
+    prevRect.current = { x: cx, y: cy, w: rect.w, h: rect.h };
+
     if (isFirstRender.current) {
       gsap.set(ref.current, props);
       isFirstRender.current = false;
     } else {
-      gsap.to(ref.current, { ...props, duration: 0.4, ease: 'power3.out' });
+      gsap.to(ref.current, {
+        ...props,
+        duration: isSmallChange ? 0.05 : 0.4,
+        ease: isSmallChange ? 'none' : 'power3.out',
+        overwrite: true,
+      });
     }
     return () => {
       if (ref.current) gsap.killTweensOf(ref.current);
