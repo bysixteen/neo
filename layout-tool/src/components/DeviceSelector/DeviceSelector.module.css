@@ -1,37 +1,39 @@
 .wrapper {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .device {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 8px 16px;
-  border-radius: 8px;
-  border: 1.5px solid var(--border-default);
-  background: var(--bg-surface);
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .device:hover {
-  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .device.active {
-  border-color: var(--accent);
-  background: var(--accent-muted);
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .codename {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .size {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }

@@ -14,7 +14,7 @@ export function DeviceSelector() {
           onClick={() => setDevice(d.id)}
         >
           <span className={styles.codename}>{d.codename}</span>
-          <span className={styles.size}>{d.canvas.width} × {d.canvas.height}</span>
+          <span className={styles.size}>{d.canvas.width}x{d.canvas.height}</span>
         </button>
       ))}
     </div>

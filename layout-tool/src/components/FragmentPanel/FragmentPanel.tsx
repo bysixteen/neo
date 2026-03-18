@@ -7,7 +7,6 @@ import styles from './FragmentPanel.module.css';
 interface Props {
   leaf: LeafLayout;
   controls: LayoutControls;
-  scale: number;
   onSplit: () => void;
   onMerge: () => void;
 }
@@ -15,16 +14,13 @@ interface Props {
 function computeRadii(
   edges: { top: boolean; right: boolean; bottom: boolean; left: boolean },
   controls: LayoutControls,
-  scale: number,
 ) {
-  const outer = controls.outerRadius * scale;
-  const connected = controls.connectedRadius * scale;
-  const inner = controls.innerRadius * scale;
+  const { outerRadius, connectedRadius, innerRadius } = controls;
 
   function corner(edgeA: boolean, edgeB: boolean): number {
-    if (edgeA && edgeB) return connected;
-    if (edgeA || edgeB) return inner;
-    return outer;
+    if (edgeA && edgeB) return connectedRadius;
+    if (edgeA || edgeB) return innerRadius;
+    return outerRadius;
   }
 
   return {
@@ -35,18 +31,17 @@ function computeRadii(
   };
 }
 
-const CLICK_DELAY = 250; // ms to wait before treating as single click
+const CLICK_DELAY = 250;
 
-export function FragmentPanel({ leaf, controls, scale, onSplit, onMerge }: Props) {
+export function FragmentPanel({ leaf, controls, onSplit, onMerge }: Props) {
   const [hovered, setHovered] = useState(false);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { rect, edges, node } = leaf;
-  const radii = computeRadii(edges, controls, scale);
+  const radii = computeRadii(edges, controls);
   const borderRadius = `${radii.tl}px ${radii.tr}px ${radii.br}px ${radii.bl}px`;
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    // Delay single click to distinguish from double click
     if (clickTimer.current) clearTimeout(clickTimer.current);
     clickTimer.current = setTimeout(() => {
       clickTimer.current = null;
@@ -56,7 +51,6 @@ export function FragmentPanel({ leaf, controls, scale, onSplit, onMerge }: Props
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    // Cancel pending single click
     if (clickTimer.current) {
       clearTimeout(clickTimer.current);
       clickTimer.current = null;
@@ -81,16 +75,27 @@ export function FragmentPanel({ leaf, controls, scale, onSplit, onMerge }: Props
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className={styles.inner}>
-        <span className={styles.label}>{node.label}</span>
-        <span className={styles.size}>
-          {Math.round(rect.w / scale)} x {Math.round(rect.h / scale)}
-        </span>
-      </div>
+      {/* Subtle label — only visible on hover */}
+      <span className={`${styles.label} ${hovered ? styles.labelVisible : ''}`}>
+        {node.label}
+      </span>
 
+      {/* Hover action pills — top right, like Shape Playground */}
       {hovered && (
         <div className={styles.actions}>
-          <span className={styles.hint}>Click to split / Double-click to merge</span>
+          <button
+            className={styles.pill}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSplit();
+              if (clickTimer.current) {
+                clearTimeout(clickTimer.current);
+                clickTimer.current = null;
+              }
+            }}
+          >
+            Split Connected
+          </button>
         </div>
       )}
     </motion.div>

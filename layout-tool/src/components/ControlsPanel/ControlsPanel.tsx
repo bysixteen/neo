@@ -1,4 +1,6 @@
-import { useLayoutStore, type LayoutControls } from '../../hooks/useLayoutStore';
+import { useState } from 'react';
+import { useLayoutStore } from '../../hooks/useLayoutStore';
+import { DeviceSelector } from '../DeviceSelector/DeviceSelector';
 import styles from './ControlsPanel.module.css';
 
 interface SliderRowProps {
@@ -7,81 +9,104 @@ interface SliderRowProps {
   min: number;
   max: number;
   step?: number;
-  unit?: string;
   onChange: (v: number) => void;
 }
 
-function SliderRow({ label, value, min, max, step = 4, unit = 'px', onChange }: SliderRowProps) {
+function SliderRow({ label, value, min, max, step = 4, onChange }: SliderRowProps) {
   return (
     <div className={styles.row}>
-      <label className={styles.label}>{label}</label>
-      <input
-        className={styles.slider}
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-      />
-      <span className={styles.value}>{value}{unit}</span>
+      <span className={styles.rowLabel}>{label}</span>
+      <div className={styles.sliderRow}>
+        <input
+          className={styles.slider}
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+        />
+        <span className={styles.rowValue}>{value}</span>
+      </div>
+    </div>
+  );
+}
+
+interface SectionProps {
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}
+
+function Section({ title, defaultOpen = false, children }: SectionProps) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className={styles.section}>
+      <button className={styles.sectionToggle} onClick={() => setOpen(!open)}>
+        <span className={styles.chevron}>{open ? '\u25BE' : '\u25B8'}</span>
+        <span className={styles.sectionTitle}>{title}</span>
+      </button>
+      {open && <div className={styles.sectionBody}>{children}</div>}
     </div>
   );
 }
 
 export function ControlsPanel() {
-  const { controls, setControl, resetTree } = useLayoutStore();
+  const { controls, setControl } = useLayoutStore();
 
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
-        <h3>Controls</h3>
-        <button className={styles.reset} onClick={resetTree} title="Reset to single panel">
-          Reset
-        </button>
+        <span className={styles.headerLabel}>Controls</span>
       </div>
 
-      <div className={styles.section}>
-        <span className={styles.sectionLabel}>Radius</span>
-        <SliderRow
-          label="Outer"
-          value={controls.outerRadius}
-          min={0}
-          max={120}
-          onChange={(v) => setControl('outerRadius', v)}
-        />
-        <SliderRow
-          label="Inner"
-          value={controls.innerRadius}
-          min={0}
-          max={80}
-          onChange={(v) => setControl('innerRadius', v)}
-        />
-        <SliderRow
-          label="Connected"
-          value={controls.connectedRadius}
-          min={0}
-          max={80}
-          onChange={(v) => setControl('connectedRadius', v)}
-        />
-      </div>
+      <div className={styles.body}>
+        <Section title="Radii" defaultOpen>
+          <SliderRow
+            label="Outer Radius"
+            value={controls.outerRadius}
+            min={0}
+            max={120}
+            onChange={(v) => setControl('outerRadius', v)}
+          />
+          <SliderRow
+            label="Inner Radius"
+            value={controls.innerRadius}
+            min={0}
+            max={80}
+            onChange={(v) => setControl('innerRadius', v)}
+          />
+          <SliderRow
+            label="Connected Radius"
+            value={controls.connectedRadius}
+            min={0}
+            max={80}
+            onChange={(v) => setControl('connectedRadius', v)}
+          />
+        </Section>
 
-      <div className={styles.section}>
-        <span className={styles.sectionLabel}>Gap</span>
-        <SliderRow
-          label="Margin"
-          value={controls.margin}
-          min={0}
-          max={48}
-          onChange={(v) => setControl('margin', v)}
-        />
-        <SliderRow
-          label="Connected"
-          value={controls.connectedMargin}
-          min={0}
-          max={24}
-          onChange={(v) => setControl('connectedMargin', v)}
-        />
+        <Section title="Margins" defaultOpen>
+          <SliderRow
+            label="Margin"
+            value={controls.margin}
+            min={0}
+            max={48}
+            onChange={(v) => setControl('margin', v)}
+          />
+          <SliderRow
+            label="Connected Margin"
+            value={controls.connectedMargin}
+            min={0}
+            max={24}
+            onChange={(v) => setControl('connectedMargin', v)}
+          />
+        </Section>
+
+        <Section title="Device">
+          <div className={styles.deviceRow}>
+            <DeviceSelector />
+          </div>
+        </Section>
       </div>
     </div>
   );

@@ -1,72 +1,102 @@
 .panel {
-  width: 260px;
-  flex-shrink: 0;
-  padding: 16px;
-  border-left: 1px solid var(--border-default);
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  position: absolute;
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+  z-index: 20;
+  width: 240px;
+  border-radius: 12px;
+  background: var(--controls-bg);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+  overflow: hidden;
 }
 
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  padding: 10px 16px;
 }
 
-.header h3 {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.reset {
+.headerLabel {
   font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  border: 1px solid var(--border-default);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Collapsible section */
+.section {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sectionToggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: none;
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
+  transition: color 0.15s;
 }
 
-.reset:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+.sectionToggle:hover {
+  color: var(--text-primary);
 }
 
-.section {
+.chevron {
+  font-size: 10px;
+  color: inherit;
+  width: 10px;
+}
+
+.sectionTitle {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sectionBody {
+  padding: 0 16px 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
-.sectionLabel {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-secondary);
-}
-
+/* Slider row — label top, slider+value below */
 .row {
-  display: grid;
-  grid-template-columns: 72px 1fr 44px;
-  align-items: center;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.label {
+.rowLabel {
   font-size: 11px;
-  color: var(--text-secondary);
-  white-space: nowrap;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sliderRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .slider {
-  width: 100%;
+  flex: 1;
   height: 4px;
   appearance: none;
   background: rgba(255, 255, 255, 0.1);
@@ -80,14 +110,20 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: var(--accent);
+  background: #fff;
   border: none;
   cursor: pointer;
 }
 
-.value {
-  font-size: 11px;
-  color: var(--text-primary);
+.rowValue {
+  font-size: 12px;
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+  min-width: 28px;
   text-align: right;
+}
+
+/* Device selector row */
+.deviceRow {
+  padding-top: 2px;
 }

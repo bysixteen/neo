@@ -4,7 +4,6 @@ import styles from './SplitDivider.module.css';
 
 interface Props {
   branch: BranchLayout;
-  scale: number;
   connectedGap: number;
   unconnectedGap: number;
   onRatioChange: (ratio: number) => void;
@@ -19,7 +18,6 @@ interface DragState {
 
 export function SplitDivider({
   branch,
-  scale,
   connectedGap,
   unconnectedGap,
   onRatioChange,

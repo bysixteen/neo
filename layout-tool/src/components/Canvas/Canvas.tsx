@@ -5,27 +5,20 @@ import { FragmentPanel } from '../FragmentPanel/FragmentPanel';
 import { SplitDivider } from '../SplitDivider/SplitDivider';
 import styles from './Canvas.module.css';
 
-const VIEWPORT_WIDTH = 800;
-const CANVAS_PADDING = 40;
-
 export function Canvas() {
   const { tree, device, controls, split, merge, updateSplitRatio, toggleConnected } = useLayoutStore();
 
-  const scale = useMemo(() => {
-    const maxWidth = VIEWPORT_WIDTH - CANVAS_PADDING * 2;
-    return Math.min(1, maxWidth / device.canvas.width);
-  }, [device.canvas.width]);
+  // 1:1 pixel — no scaling
+  const deviceW = device.canvas.width;
+  const deviceH = device.canvas.height;
+  const headerH = device.chrome.headerHeight;
+  const utilityH = device.chrome.utilityBarHeight;
+  const contentH = deviceH - headerH - utilityH;
 
-  const scaledDeviceW = device.canvas.width * scale;
-  const scaledDeviceH = device.canvas.height * scale;
-  const scaledHeaderH = device.chrome.headerHeight * scale;
-  const scaledUtilityH = device.chrome.utilityBarHeight * scale;
-  const scaledContentH = scaledDeviceH - scaledHeaderH - scaledUtilityH;
+  const connectedGap = controls.connectedMargin;
+  const unconnectedGap = controls.margin;
 
-  const connectedGap = controls.connectedMargin * scale;
-  const unconnectedGap = controls.margin * scale;
-
-  const contentRect: Rect = { x: 0, y: 0, w: scaledDeviceW, h: scaledContentH };
+  const contentRect: Rect = { x: 0, y: 0, w: deviceW, h: contentH };
 
   const layout = useMemo(
     () => computeLayout(tree, contentRect, connectedGap, unconnectedGap),
@@ -42,58 +35,47 @@ export function Canvas() {
   }, [merge]);
 
   return (
-    <div className={styles.wrapper}>
+    <div
+      className={styles.deviceFrame}
+      style={{ width: deviceW, height: deviceH }}
+    >
+      {/* EDL Header */}
+      <div className={styles.chromeHeader} style={{ height: headerH }}>
+        <span className={styles.chromeLabel}>EDL Header</span>
+      </div>
+
+      {/* Content surface */}
       <div
-        className={styles.deviceFrame}
-        style={{ width: scaledDeviceW, height: scaledDeviceH }}
+        className={styles.contentSurface}
+        style={{ height: contentH }}
       >
-        <div className={styles.deviceLabel}>
-          {device.codename} — {device.canvas.width} x {device.canvas.height}
-        </div>
+        {/* Leaf panels */}
+        {layout.leaves.map((leaf) => (
+          <FragmentPanel
+            key={leaf.node.id}
+            leaf={leaf}
+            controls={controls}
+            onSplit={() => handleSplit(leaf.node.id, leaf.rect)}
+            onMerge={() => handleMerge(leaf.node.id)}
+          />
+        ))}
 
-        {/* EDL Header */}
-        <div className={styles.chromeHeader} style={{ height: scaledHeaderH }}>
-          <span className={styles.chromeLabel}>EDL Header</span>
-        </div>
+        {/* Split dividers */}
+        {layout.branches.map((branch) => (
+          <SplitDivider
+            key={`div-${branch.node.id}`}
+            branch={branch}
+            connectedGap={connectedGap}
+            unconnectedGap={unconnectedGap}
+            onRatioChange={(ratio) => updateSplitRatio(branch.node.id, ratio)}
+            onToggleConnected={() => toggleConnected(branch.node.id)}
+          />
+        ))}
+      </div>
 
-        {/* Content surface */}
-        <div
-          className={styles.contentSurface}
-          style={{
-            height: scaledContentH,
-            backgroundSize: `${12 * scale}px ${12 * scale}px`,
-          }}
-        >
-          {/* Leaf panels */}
-          {layout.leaves.map((leaf) => (
-            <FragmentPanel
-              key={leaf.node.id}
-              leaf={leaf}
-              controls={controls}
-              scale={scale}
-              onSplit={() => handleSplit(leaf.node.id, leaf.rect)}
-              onMerge={() => handleMerge(leaf.node.id)}
-            />
-          ))}
-
-          {/* Split dividers (drag to resize) */}
-          {layout.branches.map((branch) => (
-            <SplitDivider
-              key={`div-${branch.node.id}`}
-              branch={branch}
-              scale={scale}
-              connectedGap={connectedGap}
-              unconnectedGap={unconnectedGap}
-              onRatioChange={(ratio) => updateSplitRatio(branch.node.id, ratio)}
-              onToggleConnected={() => toggleConnected(branch.node.id)}
-            />
-          ))}
-        </div>
-
-        {/* Utility bar */}
-        <div className={styles.chromeUtility} style={{ height: scaledUtilityH }}>
-          <span className={styles.chromeLabel}>Utility</span>
-        </div>
+      {/* Utility bar */}
+      <div className={styles.chromeUtility} style={{ height: utilityH }}>
+        <span className={styles.chromeLabel}>Utility</span>
       </div>
     </div>
   );
