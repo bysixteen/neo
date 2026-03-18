@@ -11,6 +11,8 @@ export function genId(): string {
   return `frag-${nextId++}`;
 }
 
+export type ComponentType = 'button' | 'placeholder';
+
 export interface FragmentNode {
   id: string;
   type: 'leaf' | 'branch';
@@ -23,6 +25,10 @@ export interface FragmentNode {
 
   // Leaf properties
   label?: string;
+
+  // Content — leaf-only: nested fragment tree of components
+  content?: FragmentNode;
+  componentType?: ComponentType; // set when this node IS a component
 }
 
 // ----- Labels -----
@@ -247,4 +253,103 @@ export function computeLayout(
       ...layoutB.branches,
     ],
   };
+}
+
+// ----- Content Tree Operations -----
+
+/** Create a component leaf node */
+export function createComponent(type: ComponentType): FragmentNode {
+  return { id: genId(), type: 'leaf', componentType: type };
+}
+
+/** Walk the main tree to find a leaf, then apply a transform to its content */
+function mapLeafContent(
+  root: FragmentNode,
+  leafId: string,
+  fn: (content: FragmentNode | undefined) => FragmentNode | undefined,
+): FragmentNode {
+  function walk(node: FragmentNode): FragmentNode {
+    if (node.id === leafId && node.type === 'leaf') {
+      return { ...node, content: fn(node.content) };
+    }
+    if (node.type === 'branch') {
+      return {
+        ...node,
+        children: [walk(node.children![0]), walk(node.children![1])],
+      };
+    }
+    return node;
+  }
+  return walk(root);
+}
+
+/** Add a component to a leaf panel (sets content to a single component leaf) */
+export function addContent(
+  root: FragmentNode,
+  leafId: string,
+  componentType: ComponentType,
+): FragmentNode {
+  return mapLeafContent(root, leafId, () => createComponent(componentType));
+}
+
+/** Split a node within the content tree of a leaf */
+export function splitContentNode(
+  root: FragmentNode,
+  leafId: string,
+  innerNodeId: string,
+  axis: 'horizontal' | 'vertical',
+): FragmentNode {
+  return mapLeafContent(root, leafId, (content) => {
+    if (!content) return content;
+    return splitNode(content, innerNodeId, axis);
+  });
+}
+
+/** Merge a node within the content tree of a leaf */
+export function mergeContentNode(
+  root: FragmentNode,
+  leafId: string,
+  innerNodeId: string,
+): FragmentNode {
+  return mapLeafContent(root, leafId, (content) => {
+    if (!content) return content;
+    const merged = mergeNode(content, innerNodeId);
+    // If the entire content tree collapsed to a leaf with no componentType, remove content
+    if (merged.type === 'leaf' && !merged.componentType) return undefined;
+    return merged;
+  });
+}
+
+/** Update split ratio within the content tree */
+export function setContentSplitRatio(
+  root: FragmentNode,
+  leafId: string,
+  innerBranchId: string,
+  ratio: number,
+): FragmentNode {
+  return mapLeafContent(root, leafId, (content) => {
+    if (!content) return content;
+    return setSplitRatio(content, innerBranchId, ratio);
+  });
+}
+
+/** Toggle connected state within the content tree */
+export function setContentConnected(
+  root: FragmentNode,
+  leafId: string,
+  innerBranchId: string,
+  connected: boolean,
+): FragmentNode {
+  return mapLeafContent(root, leafId, (content) => {
+    if (!content) return content;
+    return setConnected(content, innerBranchId, connected);
+  });
+}
+
+/** Remove all content from a leaf */
+export function removeContent(
+  root: FragmentNode,
+  leafId: string,
+): FragmentNode {
+  return mapLeafContent(root, leafId, () => undefined);
 }

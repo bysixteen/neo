@@ -1,0 +1,102 @@
+.contentArea {
+  position: absolute;
+  pointer-events: none;
+}
+
+.componentLeaf {
+  position: absolute;
+  pointer-events: auto;
+  transition: background 0.2s;
+}
+
+/* Button component */
+.button {
+  background: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+}
+
+.button:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* Placeholder component */
+.placeholder {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.placeholder:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Component label */
+.componentLabel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -70%);
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.12);
+  user-select: none;
+  pointer-events: none;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.componentLeaf:hover .componentLabel {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* Action pills on hover */
+.componentActions {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, 4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 6;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+
+.componentLeaf:hover .componentActions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.componentPill {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 14px;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+  transition: background 0.15s, color 0.15s;
+}
+
+.componentPill:hover {
+  background: rgba(255, 255, 255, 0.35);
+  color: #fff;
+}
+
+.componentPillDanger {
+  composes: componentPill;
+  color: rgba(255, 100, 100, 0.8);
+}
+
+.componentPillDanger:hover {
+  background: rgba(255, 100, 100, 0.2);
+  color: rgb(255, 120, 120);
+}

@@ -1,11 +1,18 @@
 import { create } from 'zustand';
 import {
   type FragmentNode,
+  type ComponentType,
   createRoot,
   splitNode,
   mergeNode,
   setConnected,
   setSplitRatio,
+  addContent,
+  splitContentNode,
+  mergeContentNode,
+  setContentSplitRatio,
+  setContentConnected,
+  removeContent,
 } from '../utils/fragmentTree';
 import { devices, defaultDevice, type DeviceConfig } from '../data/devices';
 import { semanticRadii, spacing } from '../data/tokens';
@@ -16,6 +23,9 @@ export interface LayoutControls {
   connectedRadius: number;
   margin: number;          // unconnected gap
   connectedMargin: number; // connected gap
+  contentPadding: number;  // inset from panel edge to content area
+  componentGap: number;    // gap between split components (unconnected)
+  componentConnectedGap: number; // gap between connected components
 }
 
 /** Grid layer sizes (px) and their opacities */
@@ -41,6 +51,14 @@ interface LayoutState {
   updateSplitRatio: (branchId: string, ratio: number) => void;
   resetTree: () => void;
 
+  // Content (components inside panels)
+  addContent: (leafId: string, componentType: ComponentType) => void;
+  splitContent: (leafId: string, innerNodeId: string, axis: 'horizontal' | 'vertical') => void;
+  mergeContent: (leafId: string, innerNodeId: string) => void;
+  updateContentSplitRatio: (leafId: string, innerBranchId: string, ratio: number) => void;
+  toggleContentConnected: (leafId: string, innerBranchId: string) => void;
+  removeContent: (leafId: string) => void;
+
   // Controls
   setControl: <K extends keyof LayoutControls>(key: K, value: number) => void;
 
@@ -51,6 +69,14 @@ interface LayoutState {
 
   // Device
   setDevice: (deviceId: string) => void;
+}
+
+function findLeaf(node: FragmentNode, leafId: string): FragmentNode | undefined {
+  if (node.id === leafId && node.type === 'leaf') return node;
+  if (node.type === 'branch') {
+    return findLeaf(node.children![0], leafId) ?? findLeaf(node.children![1], leafId);
+  }
+  return undefined;
 }
 
 function findBranchConnected(node: FragmentNode, branchId: string): boolean | undefined {
@@ -71,6 +97,9 @@ export const useLayoutStore = create<LayoutState>((set) => ({
     connectedRadius: semanticRadii.connected, // 40
     margin: spacing.unconnected,              // 16
     connectedMargin: spacing.connected,       // 8
+    contentPadding: 16,                       // default inset
+    componentGap: 8,                          // unconnected component gap
+    componentConnectedGap: 4,                 // connected component gap
   },
   showFineGrid: false,
   showCoarseGrid: false,
@@ -90,6 +119,30 @@ export const useLayoutStore = create<LayoutState>((set) => ({
 
   updateSplitRatio: (branchId, ratio) =>
     set((s) => ({ tree: setSplitRatio(s.tree, branchId, ratio) })),
+
+  // Content actions
+  addContent: (leafId, componentType) =>
+    set((s) => ({ tree: addContent(s.tree, leafId, componentType) })),
+
+  splitContent: (leafId, innerNodeId, axis) =>
+    set((s) => ({ tree: splitContentNode(s.tree, leafId, innerNodeId, axis) })),
+
+  mergeContent: (leafId, innerNodeId) =>
+    set((s) => ({ tree: mergeContentNode(s.tree, leafId, innerNodeId) })),
+
+  updateContentSplitRatio: (leafId, innerBranchId, ratio) =>
+    set((s) => ({ tree: setContentSplitRatio(s.tree, leafId, innerBranchId, ratio) })),
+
+  toggleContentConnected: (leafId, innerBranchId) =>
+    set((s) => {
+      const leaf = findLeaf(s.tree, leafId);
+      if (!leaf?.content) return s;
+      const current = findBranchConnected(leaf.content, innerBranchId) ?? true;
+      return { tree: setContentConnected(s.tree, leafId, innerBranchId, !current) };
+    }),
+
+  removeContent: (leafId) =>
+    set((s) => ({ tree: removeContent(s.tree, leafId) })),
 
   resetTree: () => set({ tree: createRoot() }),
 

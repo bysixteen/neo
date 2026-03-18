@@ -102,6 +102,25 @@ export function ControlsPanel() {
           />
         </Section>
 
+        <Section title="Content">
+          <SliderRow
+            label="Content Padding"
+            value={controls.contentPadding}
+            min={8}
+            max={40}
+            step={4}
+            onChange={(v) => setControl('contentPadding', v)}
+          />
+          <SliderRow
+            label="Component Gap"
+            value={controls.componentGap}
+            min={4}
+            max={24}
+            step={4}
+            onChange={(v) => setControl('componentGap', v)}
+          />
+        </Section>
+
         <Section title="Device">
           <div className={styles.deviceRow}>
             <DeviceSelector />

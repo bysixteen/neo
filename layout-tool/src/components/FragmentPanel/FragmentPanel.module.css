@@ -66,3 +66,21 @@
   background: rgba(255, 255, 255, 0.3);
   color: #fff;
 }
+
+.pillDanger {
+  color: rgba(255, 100, 100, 0.8);
+}
+
+.pillDanger:hover {
+  background: rgba(255, 100, 100, 0.2);
+  color: rgb(255, 120, 120);
+}
+
+.pillMuted {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.pillMuted:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.6);
+}

@@ -34,16 +34,16 @@ function App() {
 
       {/* Bottom toolbar */}
       <div className="bottomBar">
-        <span className="hint">Double-click to merge &middot; Drag dividers to resize</span>
+        <span className="hint">Double-click to merge &middot; Drag dividers to resize &middot; Add components to panels</span>
 
         <div className="toolbarActions">
           <button
             className={`toolbarBtn ${showFineGrid ? 'active' : ''}`}
             onClick={toggleFineGrid}
-            title={showFineGrid ? '6/12px Grid On' : '6/12px Grid Off'}
+            title={showFineGrid ? '4/12px Grid On' : '4/12px Grid Off'}
           >
             <GridNine size={16} weight={showFineGrid ? 'fill' : 'regular'} />
-            <span className="toolbarLabel">6px</span>
+            <span className="toolbarLabel">4px</span>
           </button>
 
           <button

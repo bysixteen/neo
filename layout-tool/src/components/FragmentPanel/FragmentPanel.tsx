@@ -1,6 +1,7 @@
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect, useState } from 'react';
 import gsap from 'gsap';
 import type { LeafLayout } from '../../utils/fragmentTree';
+import type { ComponentType } from '../../utils/fragmentTree';
 import type { LayoutControls } from '../../hooks/useLayoutStore';
 import styles from './FragmentPanel.module.css';
 
@@ -10,9 +11,12 @@ interface Props {
   onSplitH: () => void;
   onSplitV: () => void;
   onMerge: () => void;
+  onAddContent: (componentType: ComponentType) => void;
+  onRemoveContent: () => void;
+  hasContent: boolean;
 }
 
-function computeRadii(
+export function computeRadii(
   edges: { top: boolean; right: boolean; bottom: boolean; left: boolean },
   controls: LayoutControls,
 ) {
@@ -32,10 +36,20 @@ function computeRadii(
   };
 }
 
-export function FragmentPanel({ leaf, controls, onSplitH, onSplitV, onMerge }: Props) {
+export function FragmentPanel({
+  leaf,
+  controls,
+  onSplitH,
+  onSplitV,
+  onMerge,
+  onAddContent,
+  onRemoveContent,
+  hasContent,
+}: Props) {
   const { rect, edges, node } = leaf;
   const radii = computeRadii(edges, controls);
   const panelRef = useRef<HTMLDivElement>(null);
+  const [showComponentMenu, setShowComponentMenu] = useState(false);
 
   useEffect(() => {
     if (!panelRef.current) return;
@@ -72,24 +86,76 @@ export function FragmentPanel({ leaf, controls, onSplitH, onSplitV, onMerge }: P
 
       {/* Action pills — always in DOM, shown/hidden via CSS :hover */}
       <div className={styles.actions}>
-        <button
-          className={styles.pill}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSplitH();
-          }}
-        >
-          Split Horizontal
-        </button>
-        <button
-          className={styles.pill}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSplitV();
-          }}
-        >
-          Split Vertical
-        </button>
+        {!showComponentMenu ? (
+          <>
+            <button
+              className={styles.pill}
+              onClick={(e) => { e.stopPropagation(); onSplitH(); }}
+            >
+              Split Horizontal
+            </button>
+            <button
+              className={styles.pill}
+              onClick={(e) => { e.stopPropagation(); onSplitV(); }}
+            >
+              Split Vertical
+            </button>
+            {!hasContent && (
+              <button
+                className={styles.pill}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowComponentMenu(true);
+                }}
+              >
+                Add Component
+              </button>
+            )}
+            {hasContent && (
+              <button
+                className={`${styles.pill} ${styles.pillDanger}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveContent();
+                }}
+              >
+                Remove Content
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            <button
+              className={styles.pill}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddContent('button');
+                setShowComponentMenu(false);
+              }}
+            >
+              Button
+            </button>
+            <button
+              className={styles.pill}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddContent('placeholder');
+                setShowComponentMenu(false);
+              }}
+            >
+              Placeholder
+            </button>
+            <button
+              className={`${styles.pill} ${styles.pillMuted}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowComponentMenu(false);
+              }}
+            >
+              Cancel
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

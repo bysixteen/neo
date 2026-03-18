@@ -1,13 +1,20 @@
 import { useMemo, useCallback } from 'react';
 import { useLayoutStore, GRID_FINE, GRID_MID, GRID_COARSE, SNAP_GRID } from '../../hooks/useLayoutStore';
 import { computeLayout, type Rect } from '../../utils/fragmentTree';
-import { FragmentPanel } from '../FragmentPanel/FragmentPanel';
+import { FragmentPanel, computeRadii } from '../FragmentPanel/FragmentPanel';
 import { SplitDivider } from '../SplitDivider/SplitDivider';
+import { ComponentPanel } from '../ComponentPanel/ComponentPanel';
 import { GridOverlay } from '../GridOverlay/GridOverlay';
 import styles from './Canvas.module.css';
 
 export function Canvas() {
-  const { tree, device, controls, showFineGrid, showCoarseGrid, snapEnabled, split, merge, updateSplitRatio, toggleConnected } = useLayoutStore();
+  const {
+    tree, device, controls,
+    showFineGrid, showCoarseGrid, snapEnabled,
+    split, merge, updateSplitRatio, toggleConnected,
+    addContent, splitContent, mergeContent,
+    updateContentSplitRatio, toggleContentConnected, removeContent,
+  } = useLayoutStore();
 
   const deviceW = device.canvas.width;
   const deviceH = device.canvas.height;
@@ -71,16 +78,43 @@ export function Canvas() {
         className={styles.contentSurface}
         style={{ height: contentSurfaceH }}
       >
-        {layout.leaves.map((leaf) => (
-          <FragmentPanel
-            key={leaf.node.id}
-            leaf={leaf}
-            controls={controls}
-            onSplitH={() => handleSplit(leaf.node.id, 'horizontal')}
-            onSplitV={() => handleSplit(leaf.node.id, 'vertical')}
-            onMerge={() => handleMerge(leaf.node.id)}
-          />
-        ))}
+        {layout.leaves.map((leaf) => {
+          const hasContent = !!leaf.node.content;
+          return (
+            <FragmentPanel
+              key={leaf.node.id}
+              leaf={leaf}
+              controls={controls}
+              onSplitH={() => handleSplit(leaf.node.id, 'horizontal')}
+              onSplitV={() => handleSplit(leaf.node.id, 'vertical')}
+              onMerge={() => handleMerge(leaf.node.id)}
+              onAddContent={(type) => addContent(leaf.node.id, type)}
+              onRemoveContent={() => removeContent(leaf.node.id)}
+              hasContent={hasContent}
+            />
+          );
+        })}
+
+        {/* Component panels rendered inside leaf panels that have content */}
+        {layout.leaves
+          .filter((leaf) => leaf.node.content)
+          .map((leaf) => {
+            const radii = computeRadii(leaf.edges, controls);
+            return (
+              <ComponentPanel
+                key={`content-${leaf.node.id}`}
+                contentRoot={leaf.node.content!}
+                parentRect={leaf.rect}
+                parentRadii={radii}
+                controls={controls}
+                snapEnabled={snapEnabled}
+                onSplitContent={(innerNodeId, axis) => splitContent(leaf.node.id, innerNodeId, axis)}
+                onMergeContent={(innerNodeId) => mergeContent(leaf.node.id, innerNodeId)}
+                onUpdateContentRatio={(branchId, ratio) => updateContentSplitRatio(leaf.node.id, branchId, ratio)}
+                onToggleContentConnected={(branchId) => toggleContentConnected(leaf.node.id, branchId)}
+              />
+            );
+          })}
 
         {layout.branches.map((branch) => (
           <SplitDivider
