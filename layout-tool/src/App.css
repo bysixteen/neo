@@ -7,7 +7,7 @@
   background: var(--bg-app);
 }
 
-/* Top bar — minimal, just device selector */
+/* Top bar — minimal title */
 .topBar {
   position: absolute;
   top: 0;
@@ -43,7 +43,7 @@
   min-height: 0;
 }
 
-/* Bottom hint bar */
+/* Bottom toolbar */
 .bottomBar {
   position: absolute;
   bottom: 0;
@@ -52,8 +52,8 @@
   z-index: 10;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 16px 20px;
+  justify-content: space-between;
+  padding: 12px 20px;
   pointer-events: none;
 }
 
@@ -63,26 +63,40 @@
   letter-spacing: 0.02em;
 }
 
-.resetBtn {
-  position: absolute;
-  right: 20px;
-  bottom: 16px;
-  z-index: 10;
+.toolbarActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: auto;
+}
+
+.toolbarBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
   font-weight: 500;
-  padding: 5px 14px;
+  padding: 5px 12px;
   border-radius: 6px;
   border: 1px solid var(--border-default);
   background: var(--controls-bg);
   color: var(--text-secondary);
   cursor: pointer;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
   transition: border-color 0.15s, color 0.15s;
-  pointer-events: auto;
+  font-family: inherit;
 }
 
-.resetBtn:hover {
+.toolbarBtn:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+}
+
+.toolbarBtn.active {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.toolbarLabel {
+  white-space: nowrap;
 }

@@ -6,6 +6,7 @@ interface Props {
   branch: BranchLayout;
   connectedGap: number;
   unconnectedGap: number;
+  snapGrid: number; // 0 = no snap, otherwise snap to this interval
   onRatioChange: (ratio: number) => void;
   onToggleConnected: () => void;
 }
@@ -14,12 +15,20 @@ interface DragState {
   startClient: number;
   startRatio: number;
   totalSize: number;
+  rectOrigin: number; // absolute origin (x or y) of the branch rect
+}
+
+/** Snap a pixel position to the nearest grid line */
+function snapToGrid(px: number, grid: number): number {
+  if (grid <= 0) return px;
+  return Math.round(px / grid) * grid;
 }
 
 export function SplitDivider({
   branch,
   connectedGap,
   unconnectedGap,
+  snapGrid,
   onRatioChange,
   onToggleConnected,
 }: Props) {
@@ -33,7 +42,8 @@ export function SplitDivider({
 
   const isHorizontal = axis === 'horizontal';
   const totalSize = isHorizontal ? rect.w : rect.h;
-  const firstSize = (totalSize - gap) * ratio;
+  const usableSize = totalSize - gap;
+  const firstSize = usableSize * ratio;
 
   // Divider (drag zone) — the gap area between panels
   const dividerStyle: React.CSSProperties = isHorizontal
@@ -55,8 +65,6 @@ export function SplitDivider({
       };
 
   // Toggle button — positioned OUTSIDE the drag zone
-  // Horizontal split: to the left of the divider
-  // Vertical split: above the divider
   const toggleStyle: React.CSSProperties = isHorizontal
     ? {
         position: 'absolute',
@@ -78,7 +86,8 @@ export function SplitDivider({
     drag.current = {
       startClient: isHorizontal ? e.clientX : e.clientY,
       startRatio: ratio,
-      totalSize: totalSize - gap,
+      totalSize: usableSize,
+      rectOrigin: isHorizontal ? rect.x : rect.y,
     };
   }
 
@@ -87,8 +96,18 @@ export function SplitDivider({
     const delta = isHorizontal
       ? e.clientX - drag.current.startClient
       : e.clientY - drag.current.startClient;
-    const ratioDelta = delta / drag.current.totalSize;
-    onRatioChange(drag.current.startRatio + ratioDelta);
+
+    let newFirstSize = drag.current.startRatio * drag.current.totalSize + delta;
+
+    // Snap the divider position to the grid
+    if (snapGrid > 0) {
+      const absolutePos = drag.current.rectOrigin + newFirstSize;
+      const snapped = snapToGrid(absolutePos, snapGrid);
+      newFirstSize = snapped - drag.current.rectOrigin;
+    }
+
+    const newRatio = newFirstSize / drag.current.totalSize;
+    onRatioChange(newRatio);
   }
 
   function handlePointerUp() {

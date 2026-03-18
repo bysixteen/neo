@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useCallback } from 'react';
 import { motion } from 'framer-motion';
 import type { LeafLayout } from '../../utils/fragmentTree';
 import type { LayoutControls } from '../../hooks/useLayoutStore';
@@ -7,7 +7,8 @@ import styles from './FragmentPanel.module.css';
 interface Props {
   leaf: LeafLayout;
   controls: LayoutControls;
-  onSplit: () => void;
+  onSplitH: () => void;
+  onSplitV: () => void;
   onMerge: () => void;
 }
 
@@ -31,29 +32,13 @@ function computeRadii(
   };
 }
 
-const CLICK_DELAY = 250;
-
-export function FragmentPanel({ leaf, controls, onSplit, onMerge }: Props) {
-  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+export function FragmentPanel({ leaf, controls, onSplitH, onSplitV, onMerge }: Props) {
   const { rect, edges, node } = leaf;
   const radii = computeRadii(edges, controls);
   const borderRadius = `${radii.tl}px ${radii.tr}px ${radii.br}px ${radii.bl}px`;
 
-  const handleClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (clickTimer.current) clearTimeout(clickTimer.current);
-    clickTimer.current = setTimeout(() => {
-      clickTimer.current = null;
-      onSplit();
-    }, CLICK_DELAY);
-  }, [onSplit]);
-
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (clickTimer.current) {
-      clearTimeout(clickTimer.current);
-      clickTimer.current = null;
-    }
     onMerge();
   }, [onMerge]);
 
@@ -69,7 +54,6 @@ export function FragmentPanel({ leaf, controls, onSplit, onMerge }: Props) {
       }}
       animate={{ borderRadius }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-      onClick={handleClick}
       onDoubleClick={handleDoubleClick}
     >
       {/* Label — always present, brighter on hover via CSS */}
@@ -81,14 +65,19 @@ export function FragmentPanel({ leaf, controls, onSplit, onMerge }: Props) {
           className={styles.pill}
           onClick={(e) => {
             e.stopPropagation();
-            onSplit();
-            if (clickTimer.current) {
-              clearTimeout(clickTimer.current);
-              clickTimer.current = null;
-            }
+            onSplitH();
           }}
         >
-          Split Connected
+          Split Horizontal
+        </button>
+        <button
+          className={styles.pill}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSplitV();
+          }}
+        >
+          Split Vertical
         </button>
       </div>
     </motion.div>

@@ -1,12 +1,13 @@
 import { useMemo, useCallback } from 'react';
-import { useLayoutStore } from '../../hooks/useLayoutStore';
+import { useLayoutStore, BASE_GRID, COARSE_GRID } from '../../hooks/useLayoutStore';
 import { computeLayout, type Rect } from '../../utils/fragmentTree';
 import { FragmentPanel } from '../FragmentPanel/FragmentPanel';
 import { SplitDivider } from '../SplitDivider/SplitDivider';
+import { GridOverlay } from '../GridOverlay/GridOverlay';
 import styles from './Canvas.module.css';
 
 export function Canvas() {
-  const { tree, device, controls, split, merge, updateSplitRatio, toggleConnected } = useLayoutStore();
+  const { tree, device, controls, grid, snapEnabled, split, merge, updateSplitRatio, toggleConnected } = useLayoutStore();
 
   // 1:1 pixel — no scaling
   const deviceW = device.canvas.width;
@@ -33,8 +34,7 @@ export function Canvas() {
     [tree, contentRect.x, contentRect.y, contentRect.w, contentRect.h, connectedGap, unconnectedGap],
   );
 
-  const handleSplit = useCallback((nodeId: string, rect: Rect) => {
-    const axis = rect.w >= rect.h ? 'horizontal' : 'vertical';
+  const handleSplit = useCallback((nodeId: string, axis: 'horizontal' | 'vertical') => {
     split(nodeId, axis);
   }, [split]);
 
@@ -42,16 +42,26 @@ export function Canvas() {
     merge(nodeId);
   }, [merge]);
 
+  const snapGridSize = snapEnabled ? BASE_GRID : 0;
+
   return (
     <div
       className={styles.deviceFrame}
       style={{ width: deviceW, height: deviceH }}
     >
+      {/* Grid overlays — cover full device frame */}
+      {grid === 'fine' && (
+        <GridOverlay width={deviceW} height={deviceH} gridSize={BASE_GRID} />
+      )}
+      {grid === 'coarse' && (
+        <GridOverlay width={deviceW} height={deviceH} gridSize={COARSE_GRID} />
+      )}
+
       {/* Header zone: margin-top + header + margin-bottom */}
       <div className={styles.headerZone} style={{ height: headerZoneH }}>
         <div className={styles.headerMargin} style={{ height: chrome.headerMarginTop }} />
         <div className={styles.chromeHeader} style={{ height: chrome.headerHeight }}>
-          <span className={styles.chromeLabel}>EDL Header</span>
+          <span className={styles.chromeLabel}>Header</span>
         </div>
         <div className={styles.headerMargin} style={{ height: chrome.headerMarginBottom }} />
       </div>
@@ -67,7 +77,8 @@ export function Canvas() {
             key={leaf.node.id}
             leaf={leaf}
             controls={controls}
-            onSplit={() => handleSplit(leaf.node.id, leaf.rect)}
+            onSplitH={() => handleSplit(leaf.node.id, 'horizontal')}
+            onSplitV={() => handleSplit(leaf.node.id, 'vertical')}
             onMerge={() => handleMerge(leaf.node.id)}
           />
         ))}
@@ -79,6 +90,7 @@ export function Canvas() {
             branch={branch}
             connectedGap={connectedGap}
             unconnectedGap={unconnectedGap}
+            snapGrid={snapGridSize}
             onRatioChange={(ratio) => updateSplitRatio(branch.node.id, ratio)}
             onToggleConnected={() => toggleConnected(branch.node.id)}
           />
