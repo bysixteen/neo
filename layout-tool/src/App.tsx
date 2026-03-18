@@ -59,7 +59,7 @@ function App() {
             onClick={toggleSnap}
             title={snapEnabled ? 'Snap On (12px)' : 'Snap Off'}
           >
-            <span className="material-symbols-outlined toolbarIcon">snap_to_grid</span>
+            <span className="material-symbols-outlined toolbarIcon">magnet</span>
             <span className="toolbarLabel">Snap</span>
           </button>
 
