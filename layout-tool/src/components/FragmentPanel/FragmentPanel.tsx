@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import type { LeafLayout } from '../../utils/fragmentTree';
 import type { LayoutControls } from '../../hooks/useLayoutStore';
@@ -34,7 +34,6 @@ function computeRadii(
 const CLICK_DELAY = 250;
 
 export function FragmentPanel({ leaf, controls, onSplit, onMerge }: Props) {
-  const [hovered, setHovered] = useState(false);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { rect, edges, node } = leaf;
   const radii = computeRadii(edges, controls);
@@ -72,32 +71,26 @@ export function FragmentPanel({ leaf, controls, onSplit, onMerge }: Props) {
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
     >
-      {/* Subtle label — only visible on hover */}
-      <span className={`${styles.label} ${hovered ? styles.labelVisible : ''}`}>
-        {node.label}
-      </span>
+      {/* Label — always present, brighter on hover via CSS */}
+      <span className={styles.label}>{node.label}</span>
 
-      {/* Hover action pills — top right, like Shape Playground */}
-      {hovered && (
-        <div className={styles.actions}>
-          <button
-            className={styles.pill}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSplit();
-              if (clickTimer.current) {
-                clearTimeout(clickTimer.current);
-                clickTimer.current = null;
-              }
-            }}
-          >
-            Split Connected
-          </button>
-        </div>
-      )}
+      {/* Action pills — always in DOM, shown/hidden via CSS :hover */}
+      <div className={styles.actions}>
+        <button
+          className={styles.pill}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSplit();
+            if (clickTimer.current) {
+              clearTimeout(clickTimer.current);
+              clickTimer.current = null;
+            }
+          }}
+        >
+          Split Connected
+        </button>
+      </div>
     </motion.div>
   );
 }

@@ -9,24 +9,24 @@
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 40px rgba(0, 0, 0, 0.4);
 }
 
-/* EDL Header */
+/* Header zone — marginTop + header + marginBottom */
+.headerZone {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.headerMargin {
+  flex-shrink: 0;
+}
+
 .chromeHeader {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  padding: 0 16px;
+  padding: 0 48px;
   background: rgba(255, 255, 255, 0.03);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-/* Utility bar */
-.chromeUtility {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .chromeLabel {

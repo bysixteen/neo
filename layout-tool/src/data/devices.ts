@@ -1,12 +1,18 @@
 /**
  * Amazon device configurations.
- * Electra dimensions confirmed. Others are placeholders pending device document.
- * Chrome heights are placeholders — measure from Figma node 39-326 to confirm.
+ * Specs from Figma node 39-326.
  */
 
 export interface DeviceChrome {
-  headerHeight: number;    // EDL header + status bar (px at device resolution)
-  utilityBarHeight: number; // utility bar (px at device resolution)
+  headerHeight: number;      // EDL header height (px)
+  headerMarginTop: number;   // space above header
+  headerMarginBottom: number; // space below header
+}
+
+export interface ContentMargins {
+  left: number;
+  right: number;
+  bottom: number;
 }
 
 export interface DeviceConfig {
@@ -15,6 +21,7 @@ export interface DeviceConfig {
   codename: string;
   canvas: { width: number; height: number };
   chrome: DeviceChrome;
+  contentMargins: ContentMargins;
 }
 
 export const devices: DeviceConfig[] = [
@@ -23,21 +30,24 @@ export const devices: DeviceConfig[] = [
     name: 'Echo Show 11"',
     codename: 'Electra',
     canvas: { width: 1440, height: 900 },
-    chrome: { headerHeight: 72, utilityBarHeight: 60 }, // placeholder — verify against Figma node 39-326
+    chrome: { headerHeight: 48, headerMarginTop: 24, headerMarginBottom: 24 },
+    contentMargins: { left: 48, right: 48, bottom: 48 },
   },
   {
     id: 'hoya',
     name: '15" Display',
     codename: 'Hoya',
-    canvas: { width: 1920, height: 1200 }, // placeholder
-    chrome: { headerHeight: 72, utilityBarHeight: 60 }, // placeholder
+    canvas: { width: 1920, height: 1200 },
+    chrome: { headerHeight: 48, headerMarginTop: 24, headerMarginBottom: 24 },
+    contentMargins: { left: 48, right: 48, bottom: 48 },
   },
   {
     id: 'madeline',
     name: 'Hub 8"',
     codename: 'Madeline',
-    canvas: { width: 1024, height: 600 }, // placeholder
-    chrome: { headerHeight: 60, utilityBarHeight: 48 }, // placeholder
+    canvas: { width: 1024, height: 600 },
+    chrome: { headerHeight: 48, headerMarginTop: 24, headerMarginBottom: 24 },
+    contentMargins: { left: 36, right: 36, bottom: 36 },
   },
 ];
 

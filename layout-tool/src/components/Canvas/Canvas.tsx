@@ -11,18 +11,26 @@ export function Canvas() {
   // 1:1 pixel — no scaling
   const deviceW = device.canvas.width;
   const deviceH = device.canvas.height;
-  const headerH = device.chrome.headerHeight;
-  const utilityH = device.chrome.utilityBarHeight;
-  const contentH = deviceH - headerH - utilityH;
+
+  const { chrome, contentMargins } = device;
+  // Header zone: marginTop + header + marginBottom
+  const headerZoneH = chrome.headerMarginTop + chrome.headerHeight + chrome.headerMarginBottom;
+
+  // Content area: inset by margins
+  const contentX = contentMargins.left;
+  const contentY = 0; // relative to content surface
+  const contentW = deviceW - contentMargins.left - contentMargins.right;
+  const contentSurfaceH = deviceH - headerZoneH;
+  const contentH = contentSurfaceH - contentMargins.bottom;
 
   const connectedGap = controls.connectedMargin;
   const unconnectedGap = controls.margin;
 
-  const contentRect: Rect = { x: 0, y: 0, w: deviceW, h: contentH };
+  const contentRect: Rect = { x: contentX, y: contentY, w: contentW, h: contentH };
 
   const layout = useMemo(
     () => computeLayout(tree, contentRect, connectedGap, unconnectedGap),
-    [tree, contentRect.w, contentRect.h, connectedGap, unconnectedGap],
+    [tree, contentRect.x, contentRect.y, contentRect.w, contentRect.h, connectedGap, unconnectedGap],
   );
 
   const handleSplit = useCallback((nodeId: string, rect: Rect) => {
@@ -39,15 +47,19 @@ export function Canvas() {
       className={styles.deviceFrame}
       style={{ width: deviceW, height: deviceH }}
     >
-      {/* EDL Header */}
-      <div className={styles.chromeHeader} style={{ height: headerH }}>
-        <span className={styles.chromeLabel}>EDL Header</span>
+      {/* Header zone: margin-top + header + margin-bottom */}
+      <div className={styles.headerZone} style={{ height: headerZoneH }}>
+        <div className={styles.headerMargin} style={{ height: chrome.headerMarginTop }} />
+        <div className={styles.chromeHeader} style={{ height: chrome.headerHeight }}>
+          <span className={styles.chromeLabel}>EDL Header</span>
+        </div>
+        <div className={styles.headerMargin} style={{ height: chrome.headerMarginBottom }} />
       </div>
 
-      {/* Content surface */}
+      {/* Content surface — fragments sit within margins */}
       <div
         className={styles.contentSurface}
-        style={{ height: contentH }}
+        style={{ height: contentSurfaceH }}
       >
         {/* Leaf panels */}
         {layout.leaves.map((leaf) => (
@@ -71,11 +83,6 @@ export function Canvas() {
             onToggleConnected={() => toggleConnected(branch.node.id)}
           />
         ))}
-      </div>
-
-      {/* Utility bar */}
-      <div className={styles.chromeUtility} style={{ height: utilityH }}>
-        <span className={styles.chromeLabel}>Utility</span>
       </div>
     </div>
   );

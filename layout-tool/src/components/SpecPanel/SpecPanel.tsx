@@ -6,13 +6,16 @@ import styles from './SpecPanel.module.css';
 export function SpecPanel() {
   const { tree, device, controls } = useLayoutStore();
 
-  const contentW = device.canvas.width;
-  const contentH = device.canvas.height - device.chrome.headerHeight - device.chrome.utilityBarHeight;
-  const contentRect: Rect = { x: 0, y: 0, w: contentW, h: contentH };
+  const { chrome, contentMargins } = device;
+  const headerZoneH = chrome.headerMarginTop + chrome.headerHeight + chrome.headerMarginBottom;
+  const contentSurfaceH = device.canvas.height - headerZoneH;
+  const contentW = device.canvas.width - contentMargins.left - contentMargins.right;
+  const contentH = contentSurfaceH - contentMargins.bottom;
+  const contentRect: Rect = { x: contentMargins.left, y: 0, w: contentW, h: contentH };
 
   const layout = useMemo(
     () => computeLayout(tree, contentRect, controls.connectedMargin, controls.margin),
-    [tree, contentW, contentH, controls.connectedMargin, controls.margin],
+    [tree, contentW, contentH, contentMargins.left, controls.connectedMargin, controls.margin],
   );
 
   const count = leafCount(tree);
@@ -32,14 +35,20 @@ export function SpecPanel() {
           <span className={styles.values}>{count}</span>
         </div>
         <div className={styles.row}>
-          <span className={styles.prop}>Chrome</span>
+          <span className={styles.prop}>Header</span>
           <span className={styles.values}>
-            {device.chrome.headerHeight}px header / {device.chrome.utilityBarHeight}px utility
+            {chrome.headerHeight}px ({chrome.headerMarginTop}/{chrome.headerMarginBottom} margin)
           </span>
         </div>
         <div className={styles.row}>
           <span className={styles.prop}>Content</span>
           <span className={styles.values}>{contentW} x {contentH}px</span>
+        </div>
+        <div className={styles.row}>
+          <span className={styles.prop}>Margins</span>
+          <span className={styles.values}>
+            {contentMargins.left}/{contentMargins.right}/{contentMargins.bottom}
+          </span>
         </div>
       </div>
 
