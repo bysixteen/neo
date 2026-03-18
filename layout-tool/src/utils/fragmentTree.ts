@@ -77,8 +77,8 @@ export function splitNode(
         splitRatio: 0.5,
         connected: true,
         children: [
-          { id: genId(), type: 'leaf' },
-          { id: genId(), type: 'leaf' },
+          { id: genId(), type: 'leaf', componentType: node.componentType },
+          { id: genId(), type: 'leaf', componentType: node.componentType },
         ],
       };
     }
@@ -283,13 +283,32 @@ function mapLeafContent(
   return walk(root);
 }
 
-/** Add a component to a leaf panel (sets content to a single component leaf) */
+/** Add a component to a leaf panel.
+ *  Buttons are placed at the bottom (split V: placeholder top, button bottom).
+ *  Placeholders fill the whole content area.
+ */
 export function addContent(
   root: FragmentNode,
   leafId: string,
   componentType: ComponentType,
 ): FragmentNode {
-  return mapLeafContent(root, leafId, () => createComponent(componentType));
+  return mapLeafContent(root, leafId, () => {
+    if (componentType === 'button') {
+      // Button at bottom: vertical split with placeholder above
+      return {
+        id: genId(),
+        type: 'branch',
+        splitAxis: 'vertical',
+        splitRatio: 0.7,
+        connected: true,
+        children: [
+          { id: genId(), type: 'leaf', componentType: 'placeholder' },
+          { id: genId(), type: 'leaf', componentType: 'button' },
+        ],
+      };
+    }
+    return createComponent(componentType);
+  });
 }
 
 /** Split a node within the content tree of a leaf */

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useEffect } from 'react';
 import gsap from 'gsap';
+import * as ContextMenu from '@radix-ui/react-context-menu';
 import { computeLayout, type FragmentNode, type Rect, type LeafLayout } from '../../utils/fragmentTree';
 import type { LayoutControls } from '../../hooks/useLayoutStore';
 import { SNAP_GRID } from '../../hooks/useLayoutStore';
@@ -28,13 +29,13 @@ function computeContentRadii(
   parentRadii: { tl: number; tr: number; br: number; bl: number },
   padding: number,
 ): { tl: number; tr: number; br: number; bl: number } {
-  const tolerance = 2; // pixel tolerance for edge detection
+  const tolerance = 2;
   const touchesLeft = leafRect.x <= contentRect.x + tolerance;
   const touchesTop = leafRect.y <= contentRect.y + tolerance;
   const touchesRight = leafRect.x + leafRect.w >= contentRect.x + contentRect.w - tolerance;
   const touchesBottom = leafRect.y + leafRect.h >= contentRect.y + contentRect.h - tolerance;
 
-  const internalR = 12; // small default for internal corners
+  const internalR = 12;
 
   return {
     tl: touchesTop && touchesLeft ? Math.max(0, parentRadii.tl - padding) : internalR,
@@ -85,39 +86,52 @@ function ComponentLeaf({
   const typeClass = isButton ? styles.button : styles.placeholder;
 
   return (
-    <div
-      ref={ref}
-      className={`${styles.componentLeaf} ${typeClass}`}
-      style={{
-        left: offsetX + rect.x,
-        top: offsetY + rect.y,
-        width: rect.w,
-        height: rect.h,
-      }}
-      onDoubleClick={(e) => {
-        e.stopPropagation();
-        onMerge();
-      }}
-    >
-      <span className={styles.componentLabel}>
-        {isButton ? 'Button' : 'Placeholder'}
-      </span>
+    <ContextMenu.Root>
+      <ContextMenu.Trigger asChild>
+        <div
+          ref={ref}
+          className={`${styles.componentLeaf} ${typeClass}`}
+          style={{
+            left: offsetX + rect.x,
+            top: offsetY + rect.y,
+            width: rect.w,
+            height: rect.h,
+          }}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            onMerge();
+          }}
+        >
+          <span className={styles.componentLabel}>
+            {isButton ? 'Button' : 'Placeholder'}
+          </span>
+        </div>
+      </ContextMenu.Trigger>
 
-      <div className={styles.componentActions}>
-        <button
-          className={styles.componentPill}
-          onClick={(e) => { e.stopPropagation(); onSplitH(); }}
-        >
-          Split H
-        </button>
-        <button
-          className={styles.componentPill}
-          onClick={(e) => { e.stopPropagation(); onSplitV(); }}
-        >
-          Split V
-        </button>
-      </div>
-    </div>
+      <ContextMenu.Portal>
+        <ContextMenu.Content className={styles.contextMenu}>
+          <ContextMenu.Item
+            className={styles.contextMenuItem}
+            onSelect={onSplitH}
+          >
+            Split Horizontal
+          </ContextMenu.Item>
+          <ContextMenu.Item
+            className={styles.contextMenuItem}
+            onSelect={onSplitV}
+          >
+            Split Vertical
+          </ContextMenu.Item>
+          <ContextMenu.Separator className={styles.contextMenuSeparator} />
+          <ContextMenu.Item
+            className={`${styles.contextMenuItem} ${styles.contextMenuItemDanger}`}
+            onSelect={onMerge}
+          >
+            Remove
+          </ContextMenu.Item>
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
   );
 }
 
@@ -134,7 +148,6 @@ export function ComponentPanel({
 }: Props) {
   const { contentPadding, componentGap, componentConnectedGap } = controls;
 
-  // Content area inset from parent
   const contentRect: Rect = {
     x: 0,
     y: 0,
