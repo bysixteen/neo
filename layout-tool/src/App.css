@@ -21,6 +21,13 @@
   gap: 8px;
 }
 
+.toolbar-hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
 .toolbar-actions {
   margin-left: auto;
 }

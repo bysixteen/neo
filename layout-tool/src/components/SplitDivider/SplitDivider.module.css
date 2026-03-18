@@ -1,0 +1,72 @@
+.divider {
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.divider::before {
+  content: '';
+  position: absolute;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.12);
+  transition: background 0.15s;
+}
+
+/* Horizontal split — vertical divider line */
+.divider[style*="col-resize"]::before {
+  width: 2px;
+  height: 24px;
+}
+
+/* Vertical split — horizontal divider line */
+.divider[style*="row-resize"]::before {
+  height: 2px;
+  width: 24px;
+}
+
+.divider:hover::before {
+  background: var(--accent);
+}
+
+.connected {
+  background: transparent;
+}
+
+.disconnected {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Connectivity toggle button */
+.toggle {
+  position: relative;
+  z-index: 3;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  background: var(--surface-elevated);
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.divider:hover .toggle {
+  opacity: 1;
+}
+
+.toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.toggleIcon {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}

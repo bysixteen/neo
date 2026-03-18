@@ -1,104 +1,85 @@
 import { create } from 'zustand';
-import { gridToSlots, type Slot, type Edge } from '../utils/gridToSlots';
+import {
+  type FragmentNode,
+  createRoot,
+  splitNode,
+  mergeNode,
+  setConnected,
+  setSplitRatio,
+} from '../utils/fragmentTree';
 import { devices, defaultDevice, type DeviceConfig } from '../data/devices';
-import { spacing } from '../data/tokens';
+import { semanticRadii, spacing } from '../data/tokens';
 
-const GAP = spacing.connected; // 8px fixed gap — variable gaps deferred to later sprint
-const MIN_SLOT_PX = 108;
-
-function computeEqualSizes(count: number, totalPx: number): number[] {
-  if (count === 1) return [totalPx];
-  const available = totalPx - (count - 1) * GAP;
-  const size = Math.floor(available / count);
-  const sizes = Array(count).fill(size);
-  sizes[count - 1] = available - size * (count - 1); // last takes any remainder
-  return sizes;
+export interface LayoutControls {
+  outerRadius: number;
+  innerRadius: number;
+  connectedRadius: number;
+  margin: number;          // unconnected gap
+  connectedMargin: number; // connected gap
 }
 
 interface LayoutState {
-  // Grid
-  cols: number;
-  rows: number;
-  slots: Slot[];
-  edges: Edge[];
+  tree: FragmentNode;
+  device: DeviceConfig;
+  controls: LayoutControls;
 
-  // Slot dimensions in unscaled device pixels
-  colWidths: number[];
-  rowHeights: number[];
+  // Tree mutations
+  split: (nodeId: string, axis?: 'horizontal' | 'vertical') => void;
+  merge: (nodeId: string) => void;
+  toggleConnected: (branchId: string) => void;
+  updateSplitRatio: (branchId: string, ratio: number) => void;
+  resetTree: () => void;
+
+  // Controls
+  setControl: <K extends keyof LayoutControls>(key: K, value: number) => void;
 
   // Device
-  device: DeviceConfig;
-
-  // Actions
-  setGrid: (cols: number, rows: number) => void;
-  setEdgeConnected: (edgeId: string, connected: boolean) => void;
-  setColWidth: (index: number, width: number) => void;
-  setRowHeight: (index: number, height: number) => void;
   setDevice: (deviceId: string) => void;
 }
 
-export const useLayoutStore = create<LayoutState>((set, get) => {
-  const initial = gridToSlots(2, 1);
-  const device = defaultDevice;
-  const contentW = device.canvas.width;
-  const contentH = device.canvas.height - device.chrome.headerHeight - device.chrome.utilityBarHeight;
+function findBranchConnected(node: FragmentNode, branchId: string): boolean | undefined {
+  if (node.id === branchId) return node.connected;
+  if (node.type === 'branch') {
+    return findBranchConnected(node.children![0], branchId)
+      ?? findBranchConnected(node.children![1], branchId);
+  }
+  return undefined;
+}
 
-  return {
-    cols: 2,
-    rows: 1,
-    slots: initial.slots,
-    edges: initial.edges,
-    colWidths: computeEqualSizes(2, contentW),
-    rowHeights: computeEqualSizes(1, contentH),
-    device,
+export const useLayoutStore = create<LayoutState>((set, get) => ({
+  tree: createRoot(),
+  device: defaultDevice,
+  controls: {
+    outerRadius: semanticRadii.large,        // 80
+    innerRadius: semanticRadii.connected,     // 40
+    connectedRadius: semanticRadii.connected, // 40
+    margin: spacing.unconnected,              // 16
+    connectedMargin: spacing.connected,       // 8
+  },
 
-    setGrid: (cols, rows) => {
-      const { device } = get();
-      const { slots, edges } = gridToSlots(cols, rows);
-      const contentW = device.canvas.width;
-      const contentH = device.canvas.height - device.chrome.headerHeight - device.chrome.utilityBarHeight;
-      set({
-        cols,
-        rows,
-        slots,
-        edges,
-        colWidths: computeEqualSizes(cols, contentW),
-        rowHeights: computeEqualSizes(rows, contentH),
-      });
-    },
+  split: (nodeId, axis) =>
+    set((s) => ({ tree: splitNode(s.tree, nodeId, axis) })),
 
-    setEdgeConnected: (edgeId, connected) =>
-      set((state) => ({
-        edges: state.edges.map((e) =>
-          e.id === edgeId ? { ...e, connected } : e,
-        ),
-      })),
+  merge: (nodeId) =>
+    set((s) => ({ tree: mergeNode(s.tree, nodeId) })),
 
-    setColWidth: (index, width) =>
-      set((state) => {
-        const next = [...state.colWidths];
-        next[index] = Math.max(MIN_SLOT_PX, width);
-        return { colWidths: next };
-      }),
+  toggleConnected: (branchId) =>
+    set((s) => {
+      const current = findBranchConnected(s.tree, branchId) ?? true;
+      return { tree: setConnected(s.tree, branchId, !current) };
+    }),
 
-    setRowHeight: (index, height) =>
-      set((state) => {
-        const next = [...state.rowHeights];
-        next[index] = Math.max(MIN_SLOT_PX, height);
-        return { rowHeights: next };
-      }),
+  updateSplitRatio: (branchId, ratio) =>
+    set((s) => ({ tree: setSplitRatio(s.tree, branchId, ratio) })),
 
-    setDevice: (deviceId) => {
-      const device = devices.find((d) => d.id === deviceId);
-      if (!device) return;
-      const { cols, rows } = get();
-      const contentW = device.canvas.width;
-      const contentH = device.canvas.height - device.chrome.headerHeight - device.chrome.utilityBarHeight;
-      set({
-        device,
-        colWidths: computeEqualSizes(cols, contentW),
-        rowHeights: computeEqualSizes(rows, contentH),
-      });
-    },
-  };
-});
+  resetTree: () => set({ tree: createRoot() }),
+
+  setControl: (key, value) =>
+    set((s) => ({ controls: { ...s.controls, [key]: value } })),
+
+  setDevice: (deviceId) => {
+    const device = devices.find((d) => d.id === deviceId);
+    if (!device) return;
+    set({ device });
+  },
+}));
