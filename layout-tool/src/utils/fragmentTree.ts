@@ -110,7 +110,14 @@ export function mergeNode(root: FragmentNode, targetId: string): FragmentNode {
         node.children![0].id === targetId ||
         node.children![1].id === targetId
       ) {
-        return { id: node.id, type: 'leaf' };
+        // Preserve componentType/componentSize from the target child (or either child)
+        const target = node.children![0].id === targetId ? node.children![0] : node.children![1];
+        return {
+          id: node.id,
+          type: 'leaf',
+          componentType: target.componentType,
+          componentSize: target.componentSize,
+        };
       }
       return {
         ...node,
