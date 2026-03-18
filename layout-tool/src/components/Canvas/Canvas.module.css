@@ -1,0 +1,39 @@
+.wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  overflow: auto;
+}
+
+.deviceFrame {
+  position: relative;
+  background: var(--device-bg);
+  border-radius: 16px;
+  border: 2px solid var(--border-default);
+  overflow: visible;
+}
+
+.deviceLabel {
+  position: absolute;
+  top: -24px;
+  left: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.canvas {
+  position: relative;
+}
+
+.edgeOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.edgeOverlay > * {
+  pointer-events: auto;
+}

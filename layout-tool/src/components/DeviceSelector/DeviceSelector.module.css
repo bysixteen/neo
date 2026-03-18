@@ -1,0 +1,37 @@
+.wrapper {
+  display: flex;
+  gap: 8px;
+}
+
+.device {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-default);
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.device:hover {
+  border-color: var(--accent);
+}
+
+.device.active {
+  border-color: var(--accent);
+  background: var(--accent-muted);
+}
+
+.codename {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.size {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
