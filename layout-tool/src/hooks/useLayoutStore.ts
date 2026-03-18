@@ -46,7 +46,7 @@ function findBranchConnected(node: FragmentNode, branchId: string): boolean | un
   return undefined;
 }
 
-export const useLayoutStore = create<LayoutState>((set, get) => ({
+export const useLayoutStore = create<LayoutState>((set) => ({
   tree: createRoot(),
   device: defaultDevice,
   controls: {
