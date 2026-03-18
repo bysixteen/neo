@@ -1,11 +1,10 @@
 .divider {
-  z-index: 2;
+  z-index: 7;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* Thinner grab indicator than SplitDivider */
 .divider::after {
   content: '';
   position: absolute;
@@ -30,6 +29,7 @@
 
 /* Smaller toggle button (16px) */
 .toggle {
+  z-index: 8;
   width: 16px;
   height: 16px;
   border-radius: 50%;
@@ -42,23 +42,29 @@
   justify-content: center;
   padding: 0;
   opacity: 0;
-  transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+  transition: opacity 0.3s 0.3s, border-color 0.15s, color 0.15s;
 }
 
 .toggle::before {
   content: '';
   position: absolute;
-  inset: -8px;
+  inset: -4px;
 }
 
-.divider:hover ~ .toggle,
 .toggle:hover {
   opacity: 1;
-}
-
-.toggle:hover {
+  transition-delay: 0s;
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.toggle.visible {
+  opacity: 0.5;
+}
+
+.toggle.dragging {
+  opacity: 0 !important;
+  pointer-events: none;
 }
 
 .toggleIcon {

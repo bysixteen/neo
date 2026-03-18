@@ -6,6 +6,7 @@
 .componentLeaf {
   position: absolute;
   pointer-events: auto;
+  z-index: 3;
   transition: background 0.2s;
 }
 

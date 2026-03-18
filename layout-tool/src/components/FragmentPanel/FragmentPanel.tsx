@@ -1,5 +1,6 @@
-import { useCallback, useRef, useEffect, useState } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import gsap from 'gsap';
+import * as ContextMenu from '@radix-ui/react-context-menu';
 import type { LeafLayout } from '../../utils/fragmentTree';
 import type { ComponentType } from '../../utils/fragmentTree';
 import type { LayoutControls } from '../../hooks/useLayoutStore';
@@ -49,19 +50,32 @@ export function FragmentPanel({
   const { rect, edges, node } = leaf;
   const radii = computeRadii(edges, controls);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [showComponentMenu, setShowComponentMenu] = useState(false);
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
     if (!panelRef.current) return;
-    gsap.to(panelRef.current, {
+    const props = {
+      left: rect.x,
+      top: rect.y,
+      width: rect.w,
+      height: rect.h,
       borderRadius: `${radii.tl}px ${radii.tr}px ${radii.br}px ${radii.bl}px`,
-      duration: 0.4,
-      ease: 'power3.out',
-    });
+    };
+
+    if (isFirstRender.current) {
+      gsap.set(panelRef.current, props);
+      isFirstRender.current = false;
+    } else {
+      gsap.to(panelRef.current, {
+        ...props,
+        duration: 0.4,
+        ease: 'power3.out',
+      });
+    }
     return () => {
       if (panelRef.current) gsap.killTweensOf(panelRef.current);
     };
-  }, [radii.tl, radii.tr, radii.br, radii.bl]);
+  }, [rect.x, rect.y, rect.w, rect.h, radii.tl, radii.tr, radii.br, radii.bl]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -69,94 +83,62 @@ export function FragmentPanel({
   }, [onMerge]);
 
   return (
-    <div
-      ref={panelRef}
-      className={styles.panel}
-      style={{
-        position: 'absolute',
-        left: rect.x,
-        top: rect.y,
-        width: rect.w,
-        height: rect.h,
-      }}
-      onDoubleClick={handleDoubleClick}
-    >
-      {/* Label — always present, brighter on hover via CSS */}
-      <span className={styles.label}>{node.label}</span>
+    <ContextMenu.Root>
+      <ContextMenu.Trigger asChild>
+        <div
+          ref={panelRef}
+          className={styles.panel}
+          style={{ position: 'absolute' }}
+          onDoubleClick={handleDoubleClick}
+        >
+          <span className={styles.label}>{node.label}</span>
+        </div>
+      </ContextMenu.Trigger>
 
-      {/* Action pills — always in DOM, shown/hidden via CSS :hover */}
-      <div className={styles.actions}>
-        {!showComponentMenu ? (
-          <>
-            <button
-              className={styles.pill}
-              onClick={(e) => { e.stopPropagation(); onSplitH(); }}
-            >
-              Split Horizontal
-            </button>
-            <button
-              className={styles.pill}
-              onClick={(e) => { e.stopPropagation(); onSplitV(); }}
-            >
-              Split Vertical
-            </button>
-            {!hasContent && (
-              <button
-                className={styles.pill}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowComponentMenu(true);
-                }}
-              >
+      <ContextMenu.Portal>
+        <ContextMenu.Content className={styles.contextMenu}>
+          <ContextMenu.Item className={styles.contextMenuItem} onSelect={onSplitH}>
+            Split Horizontal
+          </ContextMenu.Item>
+          <ContextMenu.Item className={styles.contextMenuItem} onSelect={onSplitV}>
+            Split Vertical
+          </ContextMenu.Item>
+
+          <ContextMenu.Separator className={styles.contextMenuSeparator} />
+
+          {!hasContent ? (
+            <ContextMenu.Sub>
+              <ContextMenu.SubTrigger className={styles.contextMenuItem}>
                 Add Component
-              </button>
-            )}
-            {hasContent && (
-              <button
-                className={`${styles.pill} ${styles.pillDanger}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemoveContent();
-                }}
-              >
-                Remove Content
-              </button>
-            )}
-          </>
-        ) : (
-          <>
-            <button
-              className={styles.pill}
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddContent('button');
-                setShowComponentMenu(false);
-              }}
+                <span className={styles.contextMenuRight}>{'\u25B8'}</span>
+              </ContextMenu.SubTrigger>
+              <ContextMenu.Portal>
+                <ContextMenu.SubContent className={styles.contextMenu}>
+                  <ContextMenu.Item
+                    className={styles.contextMenuItem}
+                    onSelect={() => onAddContent('button')}
+                  >
+                    Button
+                  </ContextMenu.Item>
+                  <ContextMenu.Item
+                    className={styles.contextMenuItem}
+                    onSelect={() => onAddContent('placeholder')}
+                  >
+                    Placeholder
+                  </ContextMenu.Item>
+                </ContextMenu.SubContent>
+              </ContextMenu.Portal>
+            </ContextMenu.Sub>
+          ) : (
+            <ContextMenu.Item
+              className={`${styles.contextMenuItem} ${styles.contextMenuItemDanger}`}
+              onSelect={onRemoveContent}
             >
-              Button
-            </button>
-            <button
-              className={styles.pill}
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddContent('placeholder');
-                setShowComponentMenu(false);
-              }}
-            >
-              Placeholder
-            </button>
-            <button
-              className={`${styles.pill} ${styles.pillMuted}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowComponentMenu(false);
-              }}
-            >
-              Cancel
-            </button>
-          </>
-        )}
-      </div>
-    </div>
+              Remove Content
+            </ContextMenu.Item>
+          )}
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
   );
 }

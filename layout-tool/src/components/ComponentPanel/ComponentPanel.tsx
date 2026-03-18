@@ -81,20 +81,30 @@ function ComponentLeaf({
   currentSize?: ComponentSize;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const isFirstRender = useRef(true);
   const { rect, node } = leaf;
   const radii = computeContentRadii(rect, { x: 0, y: 0, w: contentRect.w, h: contentRect.h }, parentRadii, padding);
 
   useEffect(() => {
     if (!ref.current) return;
-    gsap.to(ref.current, {
+    const props = {
+      left: offsetX + rect.x,
+      top: offsetY + rect.y,
+      width: rect.w,
+      height: rect.h,
       borderRadius: `${radii.tl}px ${radii.tr}px ${radii.br}px ${radii.bl}px`,
-      duration: 0.4,
-      ease: 'power3.out',
-    });
+    };
+
+    if (isFirstRender.current) {
+      gsap.set(ref.current, props);
+      isFirstRender.current = false;
+    } else {
+      gsap.to(ref.current, { ...props, duration: 0.4, ease: 'power3.out' });
+    }
     return () => {
       if (ref.current) gsap.killTweensOf(ref.current);
     };
-  }, [radii.tl, radii.tr, radii.br, radii.bl]);
+  }, [offsetX, offsetY, rect.x, rect.y, rect.w, rect.h, radii.tl, radii.tr, radii.br, radii.bl]);
 
   const isButton = node.componentType === 'button';
   const typeClass = isButton ? styles.button : styles.placeholder;
@@ -105,12 +115,7 @@ function ComponentLeaf({
         <div
           ref={ref}
           className={`${styles.componentLeaf} ${typeClass}`}
-          style={{
-            left: offsetX + rect.x,
-            top: offsetY + rect.y,
-            width: rect.w,
-            height: rect.h,
-          }}
+          style={{ position: 'absolute' }}
           onDoubleClick={(e) => {
             e.stopPropagation();
             onMerge();

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { BranchLayout } from '../../utils/fragmentTree';
 import styles from './ContentDivider.module.css';
 
@@ -7,7 +7,6 @@ interface Props {
   connectedGap: number;
   unconnectedGap: number;
   snapGrid: number;
-  /** Offset so content-local coords map to the parent panel's absolute position */
   offsetX: number;
   offsetY: number;
   onRatioChange: (ratio: number) => void;
@@ -43,13 +42,14 @@ export function ContentDivider({
   const gap = connected ? connectedGap : unconnectedGap;
 
   const drag = useRef<DragState | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const isHorizontal = axis === 'horizontal';
   const totalSize = isHorizontal ? rect.w : rect.h;
   const usableSize = totalSize - gap;
   const firstSize = usableSize * ratio;
 
-  // Position within parent panel (offset by content area origin)
   const dividerStyle: React.CSSProperties = isHorizontal
     ? {
         position: 'absolute',
@@ -62,30 +62,30 @@ export function ContentDivider({
     : {
         position: 'absolute',
         left: offsetX + rect.x,
-        top: offsetY + rect.y,
+        top: offsetY + rect.y + firstSize,
         width: rect.w,
         height: gap,
         cursor: 'row-resize',
       };
 
+  const toggleOffset = gap + 4;
   const toggleStyle: React.CSSProperties = isHorizontal
     ? {
         position: 'absolute',
-        left: offsetX + rect.x + firstSize - 20,
+        left: offsetX + rect.x + firstSize - toggleOffset - 16,
         top: offsetY + rect.y + rect.h / 2 - 8,
-        zIndex: 4,
       }
     : {
         position: 'absolute',
         left: offsetX + rect.x + rect.w / 2 - 8,
-        top: offsetY + rect.y + firstSize - 20,
-        zIndex: 4,
+        top: offsetY + rect.y + firstSize - toggleOffset - 16,
       };
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
     e.preventDefault();
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
+    setIsDragging(true);
     drag.current = {
       startClient: isHorizontal ? e.clientX : e.clientY,
       startRatio: ratio,
@@ -114,7 +114,14 @@ export function ContentDivider({
 
   function handlePointerUp() {
     drag.current = null;
+    setIsDragging(false);
   }
+
+  const toggleClasses = [
+    styles.toggle,
+    isHovered && !isDragging ? styles.visible : '',
+    isDragging ? styles.dragging : '',
+  ].filter(Boolean).join(' ');
 
   return (
     <>
@@ -124,15 +131,19 @@ export function ContentDivider({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       />
       <button
-        className={styles.toggle}
+        className={toggleClasses}
         style={toggleStyle}
         onClick={(e) => {
           e.stopPropagation();
           e.preventDefault();
           onToggleConnected();
         }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         title={connected ? 'Disconnect' : 'Connect'}
       >
         <span className={styles.toggleIcon}>{connected ? '\u2212' : '+'}</span>

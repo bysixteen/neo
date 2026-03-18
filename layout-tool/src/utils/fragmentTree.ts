@@ -318,31 +318,40 @@ export function addContent(
   });
 }
 
+/** Recursively find the largest componentSize in a subtree */
+function getSubtreeMaxSize(node: FragmentNode): ComponentSize | undefined {
+  if (node.type === 'leaf') return node.componentSize;
+  const sizeA = getSubtreeMaxSize(node.children![0]);
+  const sizeB = getSubtreeMaxSize(node.children![1]);
+  if (!sizeA) return sizeB;
+  if (!sizeB) return sizeA;
+  return COMPONENT_SIZES[sizeA] >= COMPONENT_SIZES[sizeB] ? sizeA : sizeB;
+}
+
 /**
  * Walk a content tree and override splitRatio on vertical branches
- * where a child has a fixed componentSize, so the button gets its
- * exact pixel height and the placeholder takes the rest.
+ * where a child has a fixed componentSize (or contains buttons in its subtree),
+ * so the button band gets its exact pixel height and the placeholder takes the rest.
  */
 export function applyFixedHeights(node: FragmentNode, availableH: number, gap: number): FragmentNode {
   if (node.type === 'leaf') return node;
 
   const [childA, childB] = node.children!;
   const axis = node.splitAxis!;
-  const connected = node.connected ?? true;
-  const g = connected ? gap : gap; // both use same gap for content
+  const g = gap;
 
   if (axis === 'vertical') {
-    // Check if either child has a fixed size
-    const sizeA = childA.componentSize ? COMPONENT_SIZES[childA.componentSize] : 0;
-    const sizeB = childB.componentSize ? COMPONENT_SIZES[childB.componentSize] : 0;
+    // Recursively check subtrees for fixed-size components
+    const subtreeSizeA = getSubtreeMaxSize(childA);
+    const subtreeSizeB = getSubtreeMaxSize(childB);
+    const sizeA = subtreeSizeA ? COMPONENT_SIZES[subtreeSizeA] : 0;
+    const sizeB = subtreeSizeB ? COMPONENT_SIZES[subtreeSizeB] : 0;
     const usable = availableH - g;
 
     let ratio = node.splitRatio ?? 0.5;
     if (sizeB > 0 && sizeA === 0) {
-      // Bottom child is fixed height — placeholder takes the rest
       ratio = Math.max(0.1, (usable - sizeB) / usable);
     } else if (sizeA > 0 && sizeB === 0) {
-      // Top child is fixed height
       ratio = Math.min(0.9, sizeA / usable);
     }
 
