@@ -13,8 +13,7 @@ export function DeviceSelector() {
           className={`${styles.device} ${d.id === device.id ? styles.active : ''}`}
           onClick={() => setDevice(d.id)}
         >
-          <span className={styles.codename}>{d.codename}</span>
-          <span className={styles.size}>{d.canvas.width}x{d.canvas.height}</span>
+          <span className={styles.name}>{d.name}</span>
         </button>
       ))}
     </div>

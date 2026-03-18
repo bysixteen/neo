@@ -11,7 +11,7 @@ function App() {
     <div className="app">
       {/* Title */}
       <div className="topBar">
-        <span className="title">Fragment Layout Tool</span>
+        <span className="title">Neo</span>
       </div>
 
       {/* Canvas — 1:1 pixel, scrollable */}

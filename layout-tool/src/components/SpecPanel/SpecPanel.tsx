@@ -25,7 +25,7 @@ export function SpecPanel() {
       <div className={styles.header}>
         <h3>Spec</h3>
         <span className={styles.meta}>
-          {device.codename} — {device.canvas.width}x{device.canvas.height}
+          {device.name}
         </span>
       </div>
 

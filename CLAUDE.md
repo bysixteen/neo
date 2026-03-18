@@ -1,6 +1,6 @@
-# CLAUDE.md - Amazon
+# CLAUDE.md - Neo
 
-Project description pending.
+Fragment layout tool for touch display design exploration.
 
 ---
 
@@ -17,7 +17,7 @@ Project description pending.
 ## Structure
 
 ```
-amazon/
+neo/
 ├── .beads/            # Task tracking
 ├── .claude/           # Agent configuration
 │   ├── commands/      # Custom slash commands
