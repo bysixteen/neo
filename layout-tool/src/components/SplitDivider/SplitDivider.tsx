@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import gsap from 'gsap';
+import { Minus, Plus } from '@phosphor-icons/react';
 import type { BranchLayout } from '../../utils/fragmentTree';
 import styles from './SplitDivider.module.css';
 
@@ -156,7 +157,9 @@ export function SplitDivider({
         onMouseLeave={() => setIsHovered(false)}
         title={connected ? 'Disconnect' : 'Connect'}
       >
-        <span className={styles.toggleIcon}>{connected ? '\u2212' : '+'}</span>
+        <span className={styles.toggleIcon}>
+          {connected ? <Minus size={12} weight="bold" /> : <Plus size={12} weight="bold" />}
+        </span>
       </button>
     </>
   );
