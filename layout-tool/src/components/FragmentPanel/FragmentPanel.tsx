@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useCallback, useRef, useEffect } from 'react';
+import gsap from 'gsap';
 import type { LeafLayout } from '../../utils/fragmentTree';
 import type { LayoutControls } from '../../hooks/useLayoutStore';
 import styles from './FragmentPanel.module.css';
@@ -35,7 +35,19 @@ function computeRadii(
 export function FragmentPanel({ leaf, controls, onSplitH, onSplitV, onMerge }: Props) {
   const { rect, edges, node } = leaf;
   const radii = computeRadii(edges, controls);
-  const borderRadius = `${radii.tl}px ${radii.tr}px ${radii.br}px ${radii.bl}px`;
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!panelRef.current) return;
+    gsap.to(panelRef.current, {
+      borderRadius: `${radii.tl}px ${radii.tr}px ${radii.br}px ${radii.bl}px`,
+      duration: 0.4,
+      ease: 'power3.out',
+    });
+    return () => {
+      if (panelRef.current) gsap.killTweensOf(panelRef.current);
+    };
+  }, [radii.tl, radii.tr, radii.br, radii.bl]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -43,7 +55,8 @@ export function FragmentPanel({ leaf, controls, onSplitH, onSplitV, onMerge }: P
   }, [onMerge]);
 
   return (
-    <motion.div
+    <div
+      ref={panelRef}
       className={styles.panel}
       style={{
         position: 'absolute',
@@ -52,8 +65,6 @@ export function FragmentPanel({ leaf, controls, onSplitH, onSplitV, onMerge }: P
         width: rect.w,
         height: rect.h,
       }}
-      animate={{ borderRadius }}
-      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
       onDoubleClick={handleDoubleClick}
     >
       {/* Label — always present, brighter on hover via CSS */}
@@ -80,6 +91,6 @@ export function FragmentPanel({ leaf, controls, onSplitH, onSplitV, onMerge }: P
           Split Vertical
         </button>
       </div>
-    </motion.div>
+    </div>
   );
 }
