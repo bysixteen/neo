@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "figma-mcp": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/Users/danielcork/Sites/figma-tools-monorepo/packages/figma-mcp/dist/mcp/index.js"
+      ],
+      "env": {
+        "FIGMA_MCP_PORT": "3055",
+        "PROJECT_ROOT": "/Users/danielcork/Sites/figma-tools-monorepo/packages/figma-mcp"
+      }
+    }
+  }
+}
